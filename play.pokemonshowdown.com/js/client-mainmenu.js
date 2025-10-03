@@ -120,6 +120,12 @@
 					"Please go to pokemonshowdown.com to update it."
 				);
 			}
+
+			// ?: register format
+			setMainMenu(this)
+			if (NEUROCLIENT.client != null && !window.rematch){
+				registerFormat()
+			}
 		},
 
 		addPseudoPM: function (options) {
@@ -1287,6 +1293,7 @@
 			html += this.renderFormats();
 			html += '</span><div style="clear:left"></div><p></p>';
 			this.$el.html(html);
+			setFormat(this)
 		},
 		renderFormats: function () {
 			var data = this.data;

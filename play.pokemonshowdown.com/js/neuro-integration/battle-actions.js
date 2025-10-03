@@ -8,17 +8,27 @@ const printObj = (obj) => JSON.stringify(obj)
 
 async function registerBattleActions(clientBattle,curActive,possibleSwitch) {
 	battleRoom = clientBattle
-	currentPokemon = curActive;
+	currentPokemon = curActive
 	switchables = possibleSwitch
 	while (NEUROCLIENT.client == undefined){
 		await delay(2000)
+	}
+
+
+	var availableActions = []
+	let query = 'The battle has ended you should decide what to do now.'
+    const state = 'You should decide what to do soon.'
+
+	if (currentPokemon == null || switchables == null){
+		availableActions = ["request_rematch","new_game"]
+		registerActionsObject(battleActions,availableActions,query,state);
+		return;
 	}
 
 	console.log("battle actions: " + printObj(battleActions[0]["schema"]["properties"]))
 	console.log("choices " + printObj(clientBattle.choice) + "   current active: " + printObj(curActive))
 
 	// this should be the action's name
-	var availableActions = [];
 	var canUseMove = false;
 
 	for (var i = 0; i < curActive.moves.length; i++) {
@@ -47,37 +57,8 @@ async function registerBattleActions(clientBattle,curActive,possibleSwitch) {
 		return
 	}
 
-	let actions = [];
-
-	battleActions.forEach(action => {
-		if (availableActions.includes(action.name)){
-			actions.push(toValidAction(action))
-		}
-	});
-
-	NEUROCLIENT.client.registerActions(actions)
-
-    const query = 'It is time to decide what ' + currentPokemon.name + " will do."
-    const state = 'You should decide what to do soon.'
-    NEUROCLIENT.client.forceActions(query, availableActions, state)
-
-	NEUROCLIENT.client.onAction(actionData => {
-		battleActions.forEach(action => {
-			if (action.name == actionData.name){
-				action.handler(actionData)
-			}
-		});
-
-		return
-	})
-}
-
-function toValidAction(action) {
-	return {
-        name: action.name,
-        description: action.description,
-        schema: action.schema,
-    };
+	query = 'It is time to decide what ' + currentPokemon.name + " will do."
+	registerActionsObject(battleActions,availableActions,query,state)
 }
 
 var battleActions = [{
@@ -130,6 +111,22 @@ var battleActions = [{
 	handler: handleSwitchPokemon,
 },
 {
+	name: 'new_game',
+	description: 'Queue for a new game against a new opponent.',
+	schema: {
+		type: 'object'
+	},
+	handler: handlePostGame
+},
+{
+	name: 'request_rematch',
+	description: 'Request to rematch this opponent.',
+	schema: {
+		type: 'object'
+	},
+	handler: handlePostGame
+},
+{
 	name: 'ragequit',
 	description: 'This will forfeit this match, you should only do this when you really want to.',
 	schema: {
@@ -141,14 +138,11 @@ var battleActions = [{
 function handleSelectMove(actionData)
 {
 	if (!currentPokemon.moves.map(move => move.move).includes(actionData.params.move)){
-		window.NeuroIntegration.NEURO.client.sendActionResult(
-          actionData.id,false,actionData.params.move + " is not a valid move."
-        )
+		handleActionResult(actionData.id,false,actionData.params.move + " is not a valid move.")
+		return;
 	}
 
-	window.NeuroIntegration.NEURO.client.sendActionResult(
-          actionData.id,true,'Using ' + actionData.params.move
-        )
+	handleActionResult(actionData.id,true,'Using ' + actionData.params.move)
 
 	console.log("moves: " + printObj(currentPokemon.moves.map(move => move.move)));
 
@@ -157,25 +151,20 @@ function handleSelectMove(actionData)
 	console.log("index: " + index + "   param: " + actionData.params.move);
 	let moveStr = "move " + index;
 	battleRoom.sendDecision([moveStr]);
-	return
 }
 
 function handleSwitchPokemon(actionData) {
 	if (!switchables.map(pokemon => pokemon.name).includes(actionData.params.pokemon)){
-		window.NeuroIntegration.NEURO.client.sendActionResult(
-          actionData.id,false,actionData.params.pokemon + " is not a valid pokemon."
-        )
+		handleActionResult(actionData.id,false,actionData.params.pokemon + " is not a valid pokemon.")
+		return;
 	}
 
 	if (currentPokemon.trapped){
-		window.NeuroIntegration.NEURO.client.sendActionResult(
-          actionData.id,false,"You cannot switch pokemon as your current is trapped."
-        )
+		handleActionResult(actionData.id,false,"You cannot switch pokemon as your current is trapped.")
+		return;
 	}
 
-	window.NeuroIntegration.NEURO.client.sendActionResult(
-          actionData.id,true,'Switching to ' + actionData.params.pokemon
-        )
+	handleActionResult(actionData.id,true,'Switching to ' + actionData.params.pokemon)
 
 	console.log("pokemon: " + printObj(switchables.map(pokemon => pokemon.name)));
 
@@ -184,13 +173,38 @@ function handleSwitchPokemon(actionData) {
 	console.log("index: " + index + "   param: " + actionData.params.pokemon);
 	let moveStr = "switch " + index;
 	battleRoom.sendDecision([moveStr]);
-	return
+}
+
+window.rematch = false;
+async function handlePostGame(actionData) {
+	if (!battleRoom.battle.ended){
+		handleActionResult(actionData.id,false,"The battle has not ended yet.");
+		return;
+	}
+	handleActionResult(actionData.id,true,"exiting current match")
+
+	if (actionData.name == 'request_rematch'){
+		window.rematch = true;
+		battleRoom.closeAndRematch()
+		battleRoom = null;
+		await delay(30000) // 30 sec
+
+		// if has not accepted the rematch, (battleRoom should be set back if they accept) we can allow her to look for a new match
+		if (battleRoom == null){
+			battleRoom.send("/reject") // this should remove the last send challenge
+			registerFormat()
+		}
+
+		return
+	}
+	else{
+		window.rematch = false;
+		battleRoom.closeAndMainMenu()
+	}
 }
 
 function handleForfeit(actionData) {
-	window.NeuroIntegration.NEURO.client.sendActionResult(
-          actionData.id,true,'Leaving this match'
-        )
+	handleActionResult(actionData.id,true,'Leaving this match')
 
 	battleRoom.forfeit()
 }
@@ -199,5 +213,3 @@ function handleForfeit(actionData) {
 function finalizeForfeit(popup){
 	popup.submit()
 }
-
-console.log("battle actions: " + printObj(battleActions[0]["schema"]["properties"]))

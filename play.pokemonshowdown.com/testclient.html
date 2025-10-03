@@ -46,14 +46,14 @@
 		<div class="ps-room scrollable" id="mainmenu"><div class="mainmenuwrapper">
 			<div class="leftmenu">
 				<div class="activitymenu">
-					<div class="pmbox">
+					<!-- <div class="pmbox">
 						<div class="pm-window news-embed">
 							<h3><button class="closebutton" tabindex="-1" aria-label="Close"><i class="fa fa-times-circle"></i></button><button class="minimizebutton" tabindex="-1" aria-label="Minimize"><i class="fa fa-minus-circle"></i></button>Latest News</h3>
 							<div class="pm-log" style="max-height:none">
 								<div class="newsentry"><h4>Test client</h4><p>Welcome to the test client! You can test client changes here!</p><p>&mdash;<strong>Zarel</strong> <small class="date">on Sep 25, 2015</small></p></div>
 							</div>
 						</div>
-					</div>
+					</div> -->
 				</div>
 				<div class="mainmenu">
 					<div id="loading-message" class="mainmessage">Initializing... <noscript>FAILED<br /><br />Pok&eacute;mon Showdown requires JavaScript.</noscript></div>
@@ -99,6 +99,27 @@
 			document.getElementById('loading-message').innerHTML += ' DONE<br />Loading client...';
 		</script>
 
+		<script src="../config/neuro-config.js"></script>
+
+		<!-- Set up NeuroIntegration stuff -->
+		<script src="https://unpkg.com/neuro-game-sdk/dist/browser/neuro-game-sdk.min.js"></script>
+		<script>
+			let { NeuroClient } = NeuroGameSdk
+			const GAME_NAME = 'Pokemon Showdown'
+
+			console.log("url: " + window.NEURO_SERVER_URL)
+			const neuroClient = new NeuroClient(window.NEURO_SERVER_URL, GAME_NAME, () => {
+				console.log('loaded client')
+			})
+
+			window.NeuroIntegration = {}
+			window.NeuroIntegration.neuroClient = neuroClient
+		</script>
+
+		<script src="js/neuro-integration/initialization.js"></script>
+		<script src="js/neuro-integration/main-menu-actions.js"></script>
+		<script src="js/neuro-integration/battle-actions.js"></script>
+
 		<script src="js/client.js"></script>
 		<script src="js/client-topbar.js"></script>
 		<script src="js/client-mainmenu.js"></script>
@@ -130,24 +151,5 @@
 				window.app = new App();
 			}
 		</script>
-		<script src="../config/neuro-config.js"></script>
-
-		<script src="https://unpkg.com/neuro-game-sdk/dist/browser/neuro-game-sdk.min.js"></script>
-		<script>
-			let { NeuroClient } = NeuroGameSdk
-			const GAME_NAME = 'Pokemon Showdown'
-
-			console.log("url: " + window.NEURO_SERVER_URL)
-			const neuroClient = new NeuroClient(window.NEURO_SERVER_URL, GAME_NAME, () => {
-				console.log('loaded client')
-			})
-
-			window.NeuroIntegration = {}
-			window.NeuroIntegration.neuroClient = neuroClient
-		</script>
-
-	<script src="js/neuro-integration/initialization.js"></script>
-	<script src="js/neuro-integration/battle-actions.js"></script>
-
 	</body>
 </html>
