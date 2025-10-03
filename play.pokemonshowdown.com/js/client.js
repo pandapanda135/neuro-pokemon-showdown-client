@@ -874,7 +874,7 @@ function toId() {
 			};
 			this.socket.onmessage = function (msg) {
 				if (window.console && console.log) {
-					console.log('<< ' + msg.data);
+					console.log('<< ' + msg.data); // ?: get message log
 				}
 				self.receive(msg.data);
 			};
@@ -929,7 +929,7 @@ function toId() {
 				return;
 			}
 			if (window.console && console.log) {
-				console.log('>> ' + data);
+				console.log('>> ' + data); // ?: send message log
 			}
 			this.socket.send(data);
 		},

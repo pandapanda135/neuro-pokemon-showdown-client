@@ -260,12 +260,15 @@
 		 * Battle stuff
 		 *********************************************************/
 
+		// ?: IMPORTANT main game update control thing, gets ran after getting sent
 		updateControls: function () {
+			console.log("update controls")
 			if (this.battle.scene.customControls) return;
 			var controlsShown = this.controlsShown;
 			var switchViewpointButton = '<p><button class="button" name="switchViewpoint"><i class="fa fa-random"></i> Switch viewpoint</button></p>';
 			this.controlsShown = false;
 
+			// ? is seeking or has been finished
 			if (this.battle.seeking !== null) {
 
 				// battle is seeking
@@ -315,6 +318,7 @@
 
 			} else if (this.side) {
 
+				// ? possibly adds buttons for combat
 				// player
 				this.controlsShown = true;
 				if (!controlsShown || this.choice === undefined || this.choice && this.choice.waiting) {
@@ -355,6 +359,7 @@
 			app.topbar.updateTabbar();
 		},
 		updateControlsForPlayer: function () {
+			console.log("update for player")
 			this.callbackWaiting = true;
 
 			var act = '';
@@ -388,6 +393,7 @@
 			// this.choice.type = determines what the current choice screen to be displayed is
 			// this.choice.waiting = true if the choice has been sent and we're just waiting for the next turn
 
+			// ?: these are acts made in battle
 			switch (act) {
 			case 'move':
 				if (!this.choice) {
@@ -540,12 +546,14 @@
 			}
 		},
 		updateTimer: function () {
+			console.log("updating timer")
 			this.$('.timerbutton').replaceWith(this.getTimerHTML());
 		},
 		openTimer: function () {
 			app.addPopup(TimerPopup, { room: this });
 		},
 		updateMoveControls: function (type) {
+			console.log("update move controls")
 			var switchables = this.request && this.request.side ? this.battle.myPokemon : [];
 
 			if (type !== 'movetarget') {
@@ -653,6 +661,8 @@
 					}
 				}
 
+				// ? Create multi attack move buttons
+				console.log("creating multi pokemon moves")
 				this.$controls.html(
 					'<div class="controls">' +
 					'<div class="whatdo">' + requestTitle + this.getTimerHTML() + '</div>' +
@@ -661,6 +671,8 @@
 					'</div>'
 				);
 			} else {
+				console.log("creating battle moves")
+				// ? This is where moves are added to UI
 				// Move chooser
 				var hpBar = '<small class="' + (hpRatio < 0.2 ? 'critical' : hpRatio < 0.5 ? 'weak' : 'healthy') + '">HP ' + switchables[pos].hp + '/' + switchables[pos].maxhp + '</small>';
 				requestTitle += ' What will <strong>' + BattleLog.escapeHTML(switchables[pos].name) + '</strong> do? ' + hpBar;
@@ -730,6 +742,7 @@
 					}
 					moveMenu += movebuttons;
 				}
+				// ?: checkboxes that decide current possible special moves
 				var checkboxes = [];
 				if (canMegaEvo) {
 					checkboxes.push('<label class="megaevo"><input type="checkbox" name="megaevo" />&nbsp;Mega&nbsp;Evolution</label>');
@@ -802,6 +815,8 @@
 					moveControls + shiftControls + switchControls +
 					'</div>'
 				);
+
+				registerBattleActions(this,curActive,switchables)
 			}
 		},
 		displayParty: function (switchables, trapped) {
@@ -977,6 +992,7 @@
 		},
 
 		getPlayerChoicesHTML: function () {
+			console.log("get player choices html")
 			var buf = '<p>' + this.getTimerHTML();
 			if (!this.choice || !this.choice.waiting) {
 				return buf + '<em>Waiting for opponent...</em></p>';
@@ -1091,7 +1107,9 @@
 		 * (The rqid helps verify that the decision is sent in response to the
 		 * correct request.)
 		 */
+		// ?: send decisions that are picked, probably shouldn't use this but could
 		sendDecision: function (message) {
+			console.log("sending decision")
 			if (!$.isArray(message)) return this.send('/' + message + '|' + this.request.rqid);
 			var buf = '/choose ';
 			for (var i = 0; i < message.length; i++) {
@@ -1100,7 +1118,9 @@
 			this.send(buf.substr(0, buf.length - 1) + '|' + this.request.rqid);
 		},
 		request: null,
+		// ?: IMPORTANT this is where sent stuff gets ran
 		receiveRequest: function (request, choiceText) {
+			console.log("get request")
 			if (!request) {
 				this.side = '';
 				return;
@@ -1185,6 +1205,7 @@
 		},
 
 		// buttons
+		// ?: these are the function buttons control
 		joinBattle: function () {
 			this.send('/joinbattle');
 		},
@@ -1276,6 +1297,7 @@
 		},
 
 		// choice buttons
+		// ?: These are functions for battle controls
 		chooseMove: function (pos, e) {
 			if (!this.choice) return;
 			this.tooltips.hideTooltip();
@@ -1578,6 +1600,7 @@
 			}
 			buf += '<button type="button" name="close" class="button autofocus">Cancel</button></p></form>';
 			this.$el.html(buf);
+			finalizeForfeit(this)
 		},
 		replacePlayer: function (data) {
 			var room = this.room;
