@@ -6,20 +6,31 @@ let switchables = [];
 
 const printObj = (obj) => JSON.stringify(obj)
 
+let sentEndActions = false;
 async function registerBattleActions(clientBattle,curActive,possibleSwitch) {
-	battleRoom = clientBattle
-	currentPokemon = curActive
-	switchables = possibleSwitch
+	if (clientBattle != null) {battleRoom = clientBattle;}
+	if (curActive != null) {currentPokemon = curActive;}
+	if (possibleSwitch != null) {switchables = possibleSwitch;}
+
 	while (NEUROCLIENT.client == undefined){
 		await delay(2000)
 	}
+	if (sentEndActions) return;
 
+	if (battleRoom == null || battleRoom == undefined){
+		return;
+	}
+	// if timer inactive turn on
+	if (!(battleRoom.battle.kickingInactive && battleRoom.request && !battleRoom.request.wait && !(battleRoom.choice && battleRoom.choice.waiting))){
+		battleRoom.setTimer('on')
+	}
 
 	var availableActions = []
 	let query = 'The battle has ended you should decide what to do now.'
     const state = 'You should decide what to do soon.'
 
-	if (currentPokemon == null || switchables == null){
+	if ((curActive == null && possibleSwitch == null) && !sentEndActions){
+		sentEndActions = true;
 		availableActions = ["request_rematch","new_game"]
 		registerActionsObject(battleActions,availableActions,query,state);
 		return;
@@ -31,20 +42,42 @@ async function registerBattleActions(clientBattle,curActive,possibleSwitch) {
 	// this should be the action's name
 	var canUseMove = false;
 
-	for (var i = 0; i < curActive.moves.length; i++) {
-		if (curActive.moves[i].disabled){
-			continue
-		}
-		else{
-			canUseMove = true;
+	// if pokemon dies or needs to be changed
+	if (currentPokemon == null && switchables != null){
+		query = "You need to switch pokemon from one of the options presented"
+	}
+	else{ // maybe change from else just incase
+		query = 'It is time to decide what you will do, your current pokemon is ' + currentPokemon.name + " they have " + currentPokemon.hp
+			+  " health out of the max " + currentPokemon.maxhp
+
+		for (var i = 0; i < curActive.moves.length; i++) {
+			if (curActive.moves[i].disabled){
+				continue
+			}
+			else{
+				canUseMove = true;
+			}
 		}
 	}
 
 	if (canUseMove){
+		query = query + ". These are the moves this pokemon has"
+		currentPokemon.moves.forEach(move => {
+		query = query + "\n" + move.move + " pp: " + move.pp + " max pp: " + move.maxpp
+		});
+
 		availableActions.push("select_move")
 	}
 
 	if (switchables.length > 0 || trapped){
+		query = query + ". These are they other pokemon you can switch to and their moves"
+		switchables.forEach(pokemon => {
+			let moveString = pokemon.moves.forEach(move => {
+			" " + move.move + " pp: " + move.pp + " max pp: " + move.maxpp
+			});
+			query = query + "\n" + pokemon.name + " moves: " + moveString
+		});
+
 		availableActions.push("switch_pokemon")
 	}
 
@@ -57,7 +90,6 @@ async function registerBattleActions(clientBattle,curActive,possibleSwitch) {
 		return
 	}
 
-	query = 'It is time to decide what ' + currentPokemon.name + " will do."
 	registerActionsObject(battleActions,availableActions,query,state)
 }
 
@@ -187,6 +219,7 @@ async function handlePostGame(actionData) {
 		window.rematch = true;
 		battleRoom.closeAndRematch()
 		battleRoom = null;
+		sentEndActions = false;
 		await delay(30000) // 30 sec
 
 		// if has not accepted the rematch, (battleRoom should be set back if they accept) we can allow her to look for a new match
@@ -200,6 +233,8 @@ async function handlePostGame(actionData) {
 	else{
 		window.rematch = false;
 		battleRoom.closeAndMainMenu()
+		battleRoom = null;
+		sentEndActions = false;
 	}
 }
 

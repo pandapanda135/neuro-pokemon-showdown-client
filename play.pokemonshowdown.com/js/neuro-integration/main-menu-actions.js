@@ -34,7 +34,7 @@ var menuActions = [{
 
 				for (const key in window.BattleFormats) {
 					let format = window.BattleFormats[key]
-					if (window.DisallowedBattleFormats.includes(key) || format.isTeambuilderFormat || format.partner){
+					if (window.DisallowedBattleFormats.includes(key) || format.isTeambuilderFormat || format.partner || format.rated){
 						continue;
 					}
 
