@@ -242,7 +242,7 @@ class TimerButton extends preact.Component<{ room: BattleRoom }> {
 
 class BattlePanel extends PSRoomPanel<BattleRoom> {
 	static readonly id = 'battle';
-	static readonly routes = ['battle-*'];
+	static readonly routes = ['battle-*', 'game-*'];
 	static readonly Model = BattleRoom;
 	static handleDrop(ev: DragEvent) {
 		const file = ev.dataTransfer?.files?.[0];
@@ -483,6 +483,9 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			<p>
 				<button class="button" data-cmd="/switchsides">
 					<i class="fa fa-random" aria-hidden></i> Switch viewpoint
+				</button> {}
+				<button class="button" data-cmd="/ffto">
+					<i class="fa fa-random" aria-hidden></i> Go to turn
 				</button>
 			</p>
 		</div>;
@@ -1010,7 +1013,10 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 				</p>
 			) : (
 				<p>
-					<button class="button" data-cmd="/switchsides"><i class="fa fa-random" aria-hidden></i> Switch viewpoint</button>
+					<button class="button" data-cmd="/switchsides"><i class="fa fa-random" aria-hidden></i> Switch viewpoint</button> {}
+					<button class="button" data-cmd="/ffto">
+						<i class="fa fa-random" aria-hidden></i> Go to turn
+					</button>
 				</p>
 			)}
 		</div>;
