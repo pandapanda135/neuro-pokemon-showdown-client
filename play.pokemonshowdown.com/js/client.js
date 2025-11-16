@@ -1027,6 +1027,7 @@ function toId() {
 				roomid = toRoomid(data.substr(1, nlIndex - 1));
 				data = data.substr(nlIndex + 1);
 			}
+			console.log("recieve: " + printObj(data) + "   roomid: " + roomid);
 			if (data.substr(0, 6) === '|init|') {
 				if (!roomid) roomid = 'lobby';
 				var roomType = data.substr(6);
@@ -1113,6 +1114,8 @@ function toId() {
 					app.ignore[toUserid(names[1])] = 1;
 				}
 			}
+
+			// this gets ran in battles
 			if (roomid) {
 				if (this.rooms[roomid]) {
 					this.rooms[roomid].receive(data);

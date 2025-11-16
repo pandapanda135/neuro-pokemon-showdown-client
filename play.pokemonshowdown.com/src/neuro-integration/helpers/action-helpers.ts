@@ -8,7 +8,7 @@ export abstract class NeuroAction<T = void> {
 	) {}
 
 	abstract Validation(data: ActionData): ActionResult<T>;
-	abstract Execute(data: T): void;
+	abstract Execute(data: T): Promise<void>;
 }
 
 export type ForceActions = {
@@ -20,10 +20,9 @@ export type ForceActions = {
 
 export class ActionResult<T = void> {
 	constructor(
-		public id: string,
 		public result: boolean,
 		public message: string,
-		public returnType: T
+		public returnType: T | null = null
 	) {}
 }
 
@@ -74,15 +73,15 @@ export function registerActions(actionTypes: NeuroAction<any>[], forceActions?: 
 	}
 
 	Client.onAction((actionData: ActionData) => {
-		actionTypes.forEach((action: NeuroAction<any>) => {
+		actionTypes.forEach(async (action: NeuroAction<any>) => {
 			if (action.Name == actionData.name){
 				let result:ActionResult<any> = action.Validation(actionData)
-				Client.sendActionResult(result.id, result.result, result.message)
+				Client.sendActionResult(actionData.id, result.result, result.message)
 				if (!result.result){
 					return;
 				}
 
-				action.Execute(result.returnType)
+				await action.Execute(result.returnType)
 			}
 		});
 

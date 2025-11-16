@@ -2,7 +2,32 @@ import type { NeuroClient } from "../../../../node_modules/neuro-game-sdk/dist/i
 
 export let Client: NeuroClient
 
-export const printObj = (obj: object) => JSON.stringify(obj)
+export const config = (window as any).config;
+
+export function printObj(obj: object){
+	try {
+		JSON.stringify(decycle(obj))
+	} catch (error) {
+		console.error(error);
+	}
+}
+
+// stolen from stackoverflow
+// https://stackoverflow.com/questions/9382167/serializing-object-that-contains-cyclic-object-value
+function decycle(obj: object, stack: any[] = []): any {
+    if (!obj || typeof obj !== 'object')
+        return obj;
+    
+    if (stack.includes(obj))
+        return null;
+
+    let s = stack.concat([obj]);
+
+    return Array.isArray(obj)
+        ? obj.map(x => decycle(x, s))
+		: Object.entries(obj)
+			.map(([k, v]) => [k, decycle(v, s)]);
+}
 
 export function isOpen(): boolean {
 	return Client.ws.readyState !== 0;
