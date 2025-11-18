@@ -34,6 +34,8 @@ import { BattleScene, type PokemonSprite, BattleStatusAnims } from './battle-ani
 import { Dex, toID, toUserid, type ID, type ModdedDex } from './battle-dex';
 import { BattleTextParser, type Args, type KWArgs, type SideID } from './battle-text-parser';
 import { Teams } from './battle-teams';
+import { printObj } from './neuro-integration/helpers/setup';
+import { battleStart, newTurn, prematureEnd, winsTie as winTie } from './neuro-integration/battle-handling';
 declare const app: { user: AnyObject, rooms: AnyObject, ignore?: AnyObject } | undefined;
 
 /** [id, element?, ...misc] */
@@ -752,6 +754,7 @@ export class Side {
 
 		const data = this.battle.parseDetails(name, ident, details);
 		const poke = new Pokemon(data, this);
+		console.log("replacing pokemon: " + name + " " + ident + " " + details + " " + replaceSlot + " old pokemon:" + oldPokemon);
 		if (oldPokemon) {
 			poke.item = oldPokemon.item;
 			poke.baseAbility = oldPokemon.baseAbility;
@@ -3402,12 +3405,14 @@ export class Battle {
 		this.add(command);
 	}
 	runMajor(args: Args, kwArgs: KWArgs, preempt?: boolean) {
+		console.log("run major: " + printObj(args) + "   kwargs: " + printObj(kwArgs) + "    preempt: " + preempt);
 		switch (args[0]) {
 		case 'start': {
 			this.nearSide.active[0] = null;
 			this.farSide.active[0] = null;
 			this.scene.resetSides();
 			this.start();
+			battleStart(args,kwArgs,preempt)
 			break;
 		}
 		case 'upkeep': {
@@ -3422,6 +3427,7 @@ export class Battle {
 		case 'turn': {
 			this.setTurn(parseInt(args[1], 10));
 			this.log(args);
+			newTurn(args,kwArgs,preempt)
 			break;
 		}
 		case 'tier': {
@@ -3615,10 +3621,12 @@ export class Battle {
 		}
 		case 'win': case 'tie': {
 			this.winner(args[0] === 'tie' ? undefined : args[1]);
+			winTie(args,kwArgs,preempt)
 			break;
 		}
 		case 'prematureend': {
 			this.prematureEnd();
+			prematureEnd(args,kwArgs,preempt)
 			break;
 		}
 		case 'clearpoke': {

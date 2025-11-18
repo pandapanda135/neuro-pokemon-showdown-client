@@ -80,6 +80,7 @@ export function registerActions(actionTypes: NeuroAction<any>[], forceActions?: 
 				if (!result.result){
 					return;
 				}
+				Client.unregisterActions(actions.map((action) => action.name))
 
 				await action.Execute(result.returnType)
 			}
