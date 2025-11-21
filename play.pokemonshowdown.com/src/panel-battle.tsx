@@ -20,6 +20,7 @@ import {
 import type { Args } from "./battle-text-parser";
 import { ModifiableValue } from "./battle-tooltips";
 import { Net } from "./client-connection";
+import { BattleActionsHandler } from "./neuro-integration/battle-handling";
 
 type BattleDesc = {
 	id: RoomID,
@@ -45,6 +46,7 @@ export class BattlesRoom extends PSRoom {
 		}
 	}
 	setFormat(format: string) {
+		console.log("set format: " + format)
 		if (format === this.format) return this.refresh();
 		this.battles = null;
 		this.format = format;
@@ -67,6 +69,7 @@ class BattlesPanel extends PSRoomPanel<BattlesRoom> {
 		this.props.room.refresh();
 	};
 	changeFormat = (e: Event) => {
+		console.log(e)
 		const value = (e.target as HTMLButtonElement).value;
 		this.props.room.setFormat(value);
 	};
@@ -240,6 +243,7 @@ class TimerButton extends preact.Component<{ room: BattleRoom }> {
 	}
 };
 
+// ?: this is the panel that handles battles
 class BattlePanel extends PSRoomPanel<BattleRoom> {
 	static readonly id = 'battle';
 	static readonly routes = ['battle-*', 'game-*'];
@@ -656,6 +660,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			});
 		}
 
+		// ?: This is presumably for normal moves
 		const special = choices.moveSpecial(choices.current);
 		return active.moves.map((moveData, i) => {
 			const move = dex.moves.get(moveData.name);
@@ -890,6 +895,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			room.battle.myPokemon = request.side.pokemon;
 			this.team = request.side.pokemon;
 		}
+		var actionsHandler: BattleActionsHandler = new BattleActionsHandler();
 		switch (request.requestType) {
 		case 'move': {
 			const index = choices.index();
@@ -970,6 +976,8 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			</div>;
 		}
 		}
+
+		actionsHandler.registerActionsRequest(request)
 		return null;
 	}
 
