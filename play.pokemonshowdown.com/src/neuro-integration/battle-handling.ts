@@ -1,8 +1,8 @@
-import type { BattleRequest } from "../battle-choices";
+import type { Battle } from "../battle";
+import type { BattleChoiceBuilder, BattleRequest, BattleRequestActivePokemon } from "../battle-choices";
 import type { Args, KWArgs } from "../battle-text-parser";
 import { PS } from "../client-main";
-import type { BattleRoom } from "../panel-battle";
-import { SelectMove, SwapPokemon } from "./battle-actions";
+import { ActivateSpecial, SelectMove, SwapPokemon } from "./battle-actions";
 import { NeuroAction, registerActions, sendContext, type ForceActions } from "./helpers/action-helpers";
 
 export const target = new EventTarget();
@@ -37,18 +37,30 @@ export class BattleActionsHandler{
 	private actions: NeuroAction<any>[] = []
 	constructor(){}
 
-	addSelectMove(room: BattleRoom): void{
-		this.actions.push(new SelectMove())
+	addSelectMove(active: BattleRequestActivePokemon): void{
+		this.actions.push(new SelectMove(active))
 	}
 
-	addSwapPokemon(room: BattleRoom): void{
-		this.actions.push(new SwapPokemon(room))
+	addSwapPokemon(battle: Battle): void{
+		this.actions.push(new SwapPokemon(battle))
+	}
+
+	activateSpecial(moveRequest: BattleRequestActivePokemon, choices: BattleChoiceBuilder): void{
+		const canDynamax = moveRequest.canDynamax && !choices.alreadyMax;
+		const canMegaEvo = moveRequest.canMegaEvo && !choices.alreadyMega;
+		const canMegaEvoX = moveRequest.canMegaEvoX && !choices.alreadyMega;
+		const canMegaEvoY = moveRequest.canMegaEvoY && !choices.alreadyMega;
+		const canZMove = moveRequest.zMoves && !choices.alreadyZ;
+		const canUltraBurst = moveRequest.canUltraBurst;
+		const canTerastallize = moveRequest.canTerastallize;
+
+		if ((canDynamax || canMegaEvo || canMegaEvoX || canMegaEvoY || canZMove || canUltraBurst || canTerastallize)){
+			this.actions.push(new ActivateSpecial())
+		}
 	}
 
 	registerActionsRequest(request: BattleRequest): void{
 		let force: ForceActions = {query: "", actionNames: []}
 		registerActions(this.actions,force)
-
-		return
 	}
 }

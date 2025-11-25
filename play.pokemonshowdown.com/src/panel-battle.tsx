@@ -572,6 +572,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 				(prevents switching if you're locked)
 			</em></p>}
 			{this.renderMoveControls(moveRequest, choices)}
+			{this.actionsHandler.activateSpecial(moveRequest, choices)}
 			<div class="megaevo-box">
 				{canDynamax && <label class={`megaevo${choices.current.max ? ' cur' : ''}`}>
 					<input type="checkbox" name="max" checked={choices.current.max} onChange={this.toggleBoostedMove} /> {}
@@ -618,6 +619,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 				return <div class="message-error">Maxed with no max moves</div>;
 			}
 			const gmax = active.gigantamax && dex.moves.get(active.gigantamax);
+			this.actionsHandler.addSelectMove(active)
 			return active.moves.map((moveData, i) => {
 				const move = dex.moves.get(moveData.name);
 				const moveType = tooltips.getMoveType(move, valueTracker, gmax || true)[0];
@@ -742,6 +744,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			{isReviving && <em class="movewarning">
 				Choose a pokemon to revive!<br />
 			</em>}
+			{this.actionsHandler.addSwapPokemon(battle)}
 			{request.side.pokemon.map((serverPokemon, i) => {
 				let cantSwitch = trapped || i < numActive || choices.alreadySwitchingIn.includes(i + 1) || serverPokemon.fainted;
 				if (isReviving) cantSwitch = !serverPokemon.fainted;
@@ -868,6 +871,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			{this.renderTeamList()}
 		</div>;
 	}
+	private actionsHandler: BattleActionsHandler = new BattleActionsHandler();
 	renderPlayerControls(request: BattleRequest) {
 		const room = this.props.room;
 		const atEnd = room.battle.atQueueEnd;
@@ -895,7 +899,6 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			room.battle.myPokemon = request.side.pokemon;
 			this.team = request.side.pokemon;
 		}
-		var actionsHandler: BattleActionsHandler = new BattleActionsHandler();
 		switch (request.requestType) {
 		case 'move': {
 			const index = choices.index();
@@ -977,7 +980,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 		}
 		}
 
-		actionsHandler.registerActionsRequest(request)
+		this.actionsHandler.registerActionsRequest(request)
 		return null;
 	}
 
