@@ -614,12 +614,12 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 		const valueTracker = new ModifiableValue(battle, battle.nearSide.active[activeIndex]!, serverPokemon);
 		const tooltips = (battle.scene as BattleScene).tooltips;
 
+		// gigantamax
 		if (choices.current.max || (active.maxMoves && !active.canDynamax)) {
 			if (!active.maxMoves) {
 				return <div class="message-error">Maxed with no max moves</div>;
 			}
 			const gmax = active.gigantamax && dex.moves.get(active.gigantamax);
-			this.actionsHandler.addSelectMove(active)
 			return active.moves.map((moveData, i) => {
 				const move = dex.moves.get(moveData.name);
 				const moveType = tooltips.getMoveType(move, valueTracker, gmax || true)[0];
@@ -662,8 +662,9 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			});
 		}
 
-		// ?: This is presumably for normal moves
+		// ?: This is presumably for normal moves, special is used for send a specific move as it's special variant
 		const special = choices.moveSpecial(choices.current);
+		this.actionsHandler.addSelectMove(active)
 		return active.moves.map((moveData, i) => {
 			const move = dex.moves.get(moveData.name);
 			const moveType = tooltips.getMoveType(move, valueTracker)[0];
@@ -744,7 +745,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			{isReviving && <em class="movewarning">
 				Choose a pokemon to revive!<br />
 			</em>}
-			{this.actionsHandler.addSwapPokemon(battle)}
+			{this.actionsHandler.addSwapPokemon(battle, request, choices, ignoreTrapping)}
 			{request.side.pokemon.map((serverPokemon, i) => {
 				let cantSwitch = trapped || i < numActive || choices.alreadySwitchingIn.includes(i + 1) || serverPokemon.fainted;
 				if (isReviving) cantSwitch = !serverPokemon.fainted;
@@ -916,6 +917,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 							{this.renderMoveTargetControls(request, choices)}
 						</div>
 					</div>
+					{this.actionsHandler.registerBattleActions()}
 				</div>;
 			}
 
@@ -938,6 +940,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 					<h3 class="switchselect">Switch</h3>
 					{this.renderSwitchMenu(request, choices)}
 				</div>
+				{this.actionsHandler.registerBattleActions()}
 			</div>;
 		} case 'switch': {
 			const pokemon = request.side.pokemon[choices.index()];
@@ -950,6 +953,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 					<h3 class="switchselect">Switch</h3>
 					{this.renderSwitchMenu(request, choices, true)}
 				</div>
+				{this.actionsHandler.registerBattleActions()}
 			</div>;
 		} case 'team': {
 			return <div class="controls">
@@ -980,7 +984,6 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 		}
 		}
 
-		this.actionsHandler.registerActionsRequest(request)
 		return null;
 	}
 

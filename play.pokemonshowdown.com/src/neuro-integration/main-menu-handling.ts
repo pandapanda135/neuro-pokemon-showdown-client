@@ -58,7 +58,7 @@ async function handleLoad(): Promise<void> {
 		await delay(1000)
 	}
 
-	let actions: NeuroAction<any>[] = [new SelectFormat(), new SelectMove()]
+	let actions: NeuroAction<any>[] = [new SelectFormat()]
 	let force: ForceActions = {query: "You need to select a format to play from these options", actionNames: ["select_format"]}
 	registerActions(actions, force);
 }

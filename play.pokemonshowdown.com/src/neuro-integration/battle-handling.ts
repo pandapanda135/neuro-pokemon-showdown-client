@@ -1,11 +1,10 @@
 import type { Battle } from "../battle";
-import type { BattleChoiceBuilder, BattleRequest, BattleRequestActivePokemon } from "../battle-choices";
+import type { BattleChoiceBuilder, BattleMoveRequest, BattleRequest, BattleRequestActivePokemon, BattleSwitchRequest } from "../battle-choices";
 import type { Args, KWArgs } from "../battle-text-parser";
 import { PS } from "../client-main";
 import { ActivateSpecial, SelectMove, SwapPokemon } from "./battle-actions";
 import { NeuroAction, registerActions, sendContext, type ForceActions } from "./helpers/action-helpers";
-
-export const target = new EventTarget();
+import { delay } from "./helpers/setup";
 
 export function battleStart(args: Args, kw: KWArgs, preempt?: boolean) {
 	
@@ -30,7 +29,7 @@ export function winsTie(args: Args, kw: KWArgs, preempt?: boolean){
 }
 
 export function prematureEnd(args: Args, kw: KWArgs, preempt?: boolean) {
-	
+
 }
 
 export class BattleActionsHandler{
@@ -38,11 +37,12 @@ export class BattleActionsHandler{
 	constructor(){}
 
 	addSelectMove(active: BattleRequestActivePokemon): void{
+		console.log("adding select move");
 		this.actions.push(new SelectMove(active))
 	}
 
-	addSwapPokemon(battle: Battle): void{
-		this.actions.push(new SwapPokemon(battle))
+	addSwapPokemon(battle: Battle,request: BattleMoveRequest | BattleSwitchRequest , choices: BattleChoiceBuilder, ignoreTrapping: boolean | undefined): void{
+		this.actions.push(new SwapPokemon(battle,request, choices, ignoreTrapping))
 	}
 
 	activateSpecial(moveRequest: BattleRequestActivePokemon, choices: BattleChoiceBuilder): void{
@@ -55,11 +55,13 @@ export class BattleActionsHandler{
 		const canTerastallize = moveRequest.canTerastallize;
 
 		if ((canDynamax || canMegaEvo || canMegaEvoX || canMegaEvoY || canZMove || canUltraBurst || canTerastallize)){
-			this.actions.push(new ActivateSpecial())
+			this.actions.push(new ActivateSpecial(moveRequest))
 		}
 	}
 
-	registerActionsRequest(request: BattleRequest): void{
+	async registerBattleActions(): Promise<void>{
+		// we delay in case actions take time to be added
+		await delay(1000)
 		let force: ForceActions = {query: "", actionNames: []}
 		registerActions(this.actions,force)
 	}
