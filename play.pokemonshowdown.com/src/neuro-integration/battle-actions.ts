@@ -1,5 +1,6 @@
 import type { Battle, ServerPokemon } from "../battle";
 import type { BattleChoiceBuilder, BattleMoveRequest, BattleRequestActivePokemon, BattleSwitchRequest } from "../battle-choices";
+import { PS } from "../client-main";
 import { BattleActionsHandler } from "./battle-handling";
 import { ActionResult, NeuroAction, type ActionData } from "./helpers/action-helpers";
 
@@ -16,11 +17,14 @@ export class SelectMove extends NeuroAction<string> {
 	override async Execute(data: string): Promise<void> {
 		var moveButtons: NodeListOf<HTMLButtonElement> = document.querySelectorAll<HTMLButtonElement>('.movebutton')
 
-		for (const button of moveButtons) {
-			if (button.value != data) continue;
+		console.log("amount of move buttons" + moveButtons.length);
 
-			button.click()
-			break
+		for (let i = 0; i < this.currentPokemon.moves.length; i++) {
+			var move = this.currentPokemon.moves[i];
+			if (move.name !== data) continue
+
+			moveButtons[i].click()
+			break;
 		}
 	}
 
@@ -43,10 +47,16 @@ export class SelectMove extends NeuroAction<string> {
 		// const room: BattleRoom = PS.rooms["battle"] as BattleRoom || null
 		let moves: string[] | undefined = current.moves.map((move, i) =>{
 			if (move.disabled) return "";
-			return current.maxMoves![i].name;
+			// if (current.maxMoves === undefined) return "";
+			// console.log("max move amount: " + current.maxMoves.length);
+			// console.error("adding: " + current.maxMoves[i].name);
+
+			console.log("adding move: " + move.name);
+			return move.name;
 		})
+
 		if (moves == undefined) return [];
-		return moves.filter(move => move != "");
+		return moves.filter(move => move.length !== 0);
 	}
 }
 
@@ -65,7 +75,7 @@ export class SwapPokemon extends NeuroAction<ServerPokemon>{
 
 			if (serverPokemon.name != sentName) return;
 
-			if (!SwapPokemon.canSwitchPokemon(serverPokemon,this.battle,this.choices,this.ignoreTrapping,i)) return;
+			if (!SwapPokemon.cantSwitchPokemon(serverPokemon,this.battle,this.choices,this.ignoreTrapping,i)) return;
 
 			pokemon = serverPokemon;
 		})
@@ -81,7 +91,7 @@ export class SwapPokemon extends NeuroAction<ServerPokemon>{
 
 		for (let i = 0; i < this.battle.myPokemon.length; i++) {
 			console.log(i + ": pokemon name: " + this.battle.myPokemon[i].name);
-			
+
 			if (this.battle.myPokemon[i] != data) continue;
 
 			const element = switchButtons[i];
@@ -96,25 +106,16 @@ export class SwapPokemon extends NeuroAction<ServerPokemon>{
 	}
 
 	static getPossiblePokemon(battle: Battle, request: BattleMoveRequest | BattleSwitchRequest, choices: BattleChoiceBuilder, ignoreTrapping: boolean | undefined): string[]{
-		// if (PS === undefined || PS.rooms === undefined) return [];
-
-		// for (const roomID in PS.rooms) {
-		// 	console.log("room id: " + roomID);
-		// 	console.log("room" + PS.rooms[roomID]);
-		// }
-
 		const pokemonNames: string[] = request.side.pokemon.map((serverPokemon, i) => {
-			if (!this.canSwitchPokemon(serverPokemon,battle,choices,ignoreTrapping,i)) return ""
+			const cantSwitch:boolean = this.cantSwitchPokemon(serverPokemon,battle,choices,ignoreTrapping,i)
 
-			return serverPokemon.name
+			return cantSwitch ? "" : serverPokemon.name
 		})
 
-		// if (battle === null || battle.myPokemon === null) return [];
-		// const pokemonNames: string[] = battle.myPokemon.map(pokemon => pokemon.name);
-		return pokemonNames
+		return pokemonNames.filter(name => name.length !== 0)
 	}
 
-	static canSwitchPokemon(serverPokemon: ServerPokemon , battle: Battle, choices: BattleChoiceBuilder, ignoreTrapping: Boolean | undefined, i :number): boolean{
+	static cantSwitchPokemon(serverPokemon: ServerPokemon , battle: Battle, choices: BattleChoiceBuilder, ignoreTrapping: Boolean | undefined, i :number): boolean{
 		const trapped = !ignoreTrapping && choices.currentMoveRequest()?.trapped;
 		const isReviving = battle.myPokemon!.some(p => p.reviving);
 		const numActive = choices.requestLength()
@@ -160,4 +161,18 @@ export class ActivateSpecial extends NeuroAction{
 
 		return null;
 	}
+}
+
+export class Forfeit extends NeuroAction{
+	override Validation(data: ActionData): ActionResult<void> {
+		return new ActionResult(true, "")
+	}
+	override async Execute(data: void): Promise<void> {
+		PS.room.send("/forfeit")
+	}
+
+	constructor(){
+		super("rage_quit","Rage quit this current battle.",{type: 'object'})
+	}
+
 }

@@ -2,12 +2,14 @@ import type { Battle } from "../battle";
 import type { BattleChoiceBuilder, BattleMoveRequest, BattleRequest, BattleRequestActivePokemon, BattleSwitchRequest } from "../battle-choices";
 import type { Args, KWArgs } from "../battle-text-parser";
 import { PS } from "../client-main";
-import { ActivateSpecial, SelectMove, SwapPokemon } from "./battle-actions";
+import type { BattleRoom } from "../panel-battle";
+import { ActivateSpecial, Forfeit, SelectMove, SwapPokemon } from "./battle-actions";
 import { NeuroAction, registerActions, sendContext, type ForceActions } from "./helpers/action-helpers";
-import { delay } from "./helpers/setup";
+import { config, delay } from "./helpers/setup";
 
 export function battleStart(args: Args, kw: KWArgs, preempt?: boolean) {
-	
+	console.log("battle start");
+	PS.room.send("/timer on")
 }
 
 export function newTurn(args: Args, kw: KWArgs, preempt?: boolean) {
@@ -16,15 +18,15 @@ export function newTurn(args: Args, kw: KWArgs, preempt?: boolean) {
 
 export function winsTie(args: Args, kw: KWArgs, preempt?: boolean){
 	if (args[0] == 'tie'){
-		sendContext("You and your opponent have tied this battle.")
+		sendContext("You and your opponent have tied this battle.", false)
 		return;
 	}
 
 	if (args[1] == PS.user.name){
-		sendContext("You won this battle!")
+		sendContext("You won this battle!", false)
 	}
 	else{
-		sendContext("You are a disappointment and you lost this battle.")
+		sendContext("You are a disappointment and you lost this battle.", false)
 	}
 }
 
@@ -43,6 +45,11 @@ export class BattleActionsHandler{
 
 	addSwapPokemon(battle: Battle,request: BattleMoveRequest | BattleSwitchRequest , choices: BattleChoiceBuilder, ignoreTrapping: boolean | undefined): void{
 		this.actions.push(new SwapPokemon(battle,request, choices, ignoreTrapping))
+	}
+
+	addForfeit(){
+		if (!config.ALLOW_RAGE_QUIT) return;
+		this.actions.push(new Forfeit())
 	}
 
 	activateSpecial(moveRequest: BattleRequestActivePokemon, choices: BattleChoiceBuilder): void{

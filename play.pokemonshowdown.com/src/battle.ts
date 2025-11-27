@@ -35,7 +35,7 @@ import { Dex, toID, toUserid, type ID, type ModdedDex } from './battle-dex';
 import { BattleTextParser, type Args, type KWArgs, type SideID } from './battle-text-parser';
 import { Teams } from './battle-teams';
 import { printObj } from './neuro-integration/helpers/setup';
-import { battleStart, newTurn, prematureEnd, winsTie as winTie } from './neuro-integration/battle-handling';
+import { battleStart, newTurn, prematureEnd, winsTie } from './neuro-integration/battle-handling';
 declare const app: { user: AnyObject, rooms: AnyObject, ignore?: AnyObject } | undefined;
 
 /** [id, element?, ...misc] */
@@ -3621,7 +3621,7 @@ export class Battle {
 		}
 		case 'win': case 'tie': {
 			this.winner(args[0] === 'tie' ? undefined : args[1]);
-			winTie(args,kwArgs,preempt)
+			winsTie(args, kwArgs, preempt)
 			break;
 		}
 		case 'prematureend': {

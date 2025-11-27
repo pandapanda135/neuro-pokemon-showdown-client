@@ -900,6 +900,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			room.battle.myPokemon = request.side.pokemon;
 			this.team = request.side.pokemon;
 		}
+		this.actionsHandler.addForfeit()
 		switch (request.requestType) {
 		case 'move': {
 			const index = choices.index();
@@ -987,6 +988,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 		return null;
 	}
 
+	// ?: use this to register end game actions
 	renderAfterBattleControls() {
 		const room = this.props.room;
 		const isNotTiny = room.width > 700;

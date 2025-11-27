@@ -2,7 +2,6 @@ import { type ActionData,type ForceActions , ActionResult, NeuroAction, register
 import { config, delay, isOpen, printObj } from "./helpers/setup";
 import { PS } from "../client-main";
 import { type RoomID } from "../client-main"
-import { SelectMove } from "./battle-actions";
 
 class SelectFormat extends NeuroAction<string> {
 	Validation(data: ActionData): ActionResult<string> {
