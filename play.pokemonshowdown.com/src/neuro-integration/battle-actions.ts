@@ -12,7 +12,7 @@ export class SelectMove extends NeuroAction<string> {
 			return new ActionResult(false,"You provided a move that is not valid")
 		}
 
-		return new ActionResult(true,"",move)
+		return new ActionResult(true,"You have selected the move " + move,move)
 	}
 	override async Execute(data: string): Promise<void> {
 		var moveButtons: NodeListOf<HTMLButtonElement> = document.querySelectorAll<HTMLButtonElement>('.movebutton')
@@ -126,21 +126,24 @@ export class SwapPokemon extends NeuroAction<ServerPokemon>{
 	}
 }
 
-
 export class ActivateSpecial extends NeuroAction{
 	override Validation(data: ActionData): ActionResult {
 		if (this.GetElement() === null){
 			return new ActionResult(false, "There was an issue activating your special ability.")
 		}
 
-		return new ActionResult(true, "You have actived you special ability.")
+		if (this.GetElement()?.checked){
+			return new ActionResult(false, "Your special ability is already activated so you cannot activate it again.")
+		}
+
+		return new ActionResult(true, "You have actived the pokemon's special ability.")
 	}
 	override async Execute(): Promise<void> {
 		this.GetElement()?.click()
 
-		let handler: BattleActionsHandler = new BattleActionsHandler()
-		handler.addSelectMove(this.active)
-		handler.registerBattleActions()
+		// let handler: BattleActionsHandler = new BattleActionsHandler()
+		// handler.addSelectMove(this.active)
+		// handler.registerBattleActions()
 	}
 	constructor(private active: BattleRequestActivePokemon){
 		super("activate_special","Activate special move",{type: 'object'})

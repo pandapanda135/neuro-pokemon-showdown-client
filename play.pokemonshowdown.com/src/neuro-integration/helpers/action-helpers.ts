@@ -72,22 +72,24 @@ export function registerActions(actionTypes: NeuroAction<any>[], forceActions?: 
 		Client.forceActions(forceActions.query, forceActions.actionNames, state, ephemeral)
 	}
 
-	Client.onAction((actionData: ActionData) => {
+	const handler = (actionData: ActionData) => {
 		actionTypes.forEach(async (action: NeuroAction<any>) => {
-			if (action.Name == actionData.name){
-				let result:ActionResult<any> = action.Validation(actionData)
-				Client.sendActionResult(actionData.id, result.result, result.message)
-				if (!result.result){
-					return;
-				}
-				Client.unregisterActions(actions.map((action) => action.name))
+			if (action.Name !== actionData.name) return;
 
-				await action.Execute(result.returnType)
+			const result:ActionResult<any> = action.Validation(actionData)
+			Client.sendActionResult(actionData.id, result.result, result.message)
+			if (!result.result){
+				return;
 			}
-		});
+			Client.unregisterActions(actions.map((action) => action.name))
 
-		return
-	})
+			await action.Execute(result.returnType)
+			Client.actionHandlers = Client.actionHandlers.filter(handler => handler !== handler)
+			return;
+		})
+	};
+
+	Client.onAction(handler)
 }
 
 export function sendContext(message: string, silent?: boolean) {

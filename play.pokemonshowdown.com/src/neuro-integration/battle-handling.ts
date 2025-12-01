@@ -4,8 +4,8 @@ import type { Args, KWArgs } from "../battle-text-parser";
 import { PS } from "../client-main";
 import type { BattleRoom } from "../panel-battle";
 import { ActivateSpecial, Forfeit, SelectMove, SwapPokemon } from "./battle-actions";
-import { NeuroAction, registerActions, sendContext, type ForceActions } from "./helpers/action-helpers";
-import { config, delay } from "./helpers/setup";
+import { NeuroAction, registerActions, sendContext, type ActionData, type ForceActions } from "./helpers/action-helpers";
+import { Client, config, delay } from "./helpers/setup";
 
 export function battleStart(args: Args, kw: KWArgs, preempt?: boolean) {
 	console.log("battle start");
@@ -17,12 +17,12 @@ export function newTurn(args: Args, kw: KWArgs, preempt?: boolean) {
 }
 
 export function winsTie(args: Args, kw: KWArgs, preempt?: boolean){
-	if (args[0] == 'tie'){
+	if (args[0] === 'tie'){
 		sendContext("You and your opponent have tied this battle.", false)
 		return;
 	}
 
-	if (args[1] == PS.user.name){
+	if (args[1] === PS.user.name){
 		sendContext("You won this battle!", false)
 	}
 	else{
@@ -35,11 +35,11 @@ export function prematureEnd(args: Args, kw: KWArgs, preempt?: boolean) {
 }
 
 export class BattleActionsHandler{
-	private actions: NeuroAction<any>[] = []
-	constructor(){}
+	constructor(private actions: NeuroAction<any>[] = []){
+		this.actions = actions;
+	}
 
 	addSelectMove(active: BattleRequestActivePokemon): void{
-		console.log("adding select move");
 		this.actions.push(new SelectMove(active))
 	}
 
@@ -66,9 +66,16 @@ export class BattleActionsHandler{
 		}
 	}
 
+	// TODO: issue with registering actions when the rending update is in a place that doesn't matter e.g. a message being sent in chat.
 	async registerBattleActions(): Promise<void>{
 		// we delay in case actions take time to be added
 		await delay(1000)
+		if (this.actions.length === 0) return;
+		if (Client.actionHandlers.find(handler => handler.arguments.find((arg: ActionData) => this.actions.filter(action => action.Name == arg.name).length > 0) !== undefined) === undefined){
+			return;
+		}
+		console.log("this actions length: " + this.actions.length);
+
 		let force: ForceActions = {query: "", actionNames: []}
 		registerActions(this.actions,force)
 	}

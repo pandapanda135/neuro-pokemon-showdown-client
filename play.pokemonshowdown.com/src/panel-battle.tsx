@@ -896,6 +896,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 				{this.renderTeamList()}
 			</div>;
 		}
+		this.actionsHandler = new BattleActionsHandler([]);
 		if (request.side) {
 			room.battle.myPokemon = request.side.pokemon;
 			this.team = request.side.pokemon;
