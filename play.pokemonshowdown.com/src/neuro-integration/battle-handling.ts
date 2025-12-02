@@ -1,9 +1,10 @@
+import { error } from "jquery";
 import type { Battle } from "../battle";
 import type { BattleChoiceBuilder, BattleMoveRequest, BattleRequest, BattleRequestActivePokemon, BattleSwitchRequest } from "../battle-choices";
 import type { Args, KWArgs } from "../battle-text-parser";
 import { PS } from "../client-main";
 import type { BattleRoom } from "../panel-battle";
-import { ActivateSpecial, Forfeit, SelectMove, SwapPokemon } from "./battle-actions";
+import { ActivateSpecial, Forfeit, SelectMove, SendChatMessage, SwapPokemon } from "./battle-actions";
 import { NeuroAction, registerActions, sendContext, type ActionData, type ForceActions } from "./helpers/action-helpers";
 import { Client, config, delay } from "./helpers/setup";
 
@@ -47,6 +48,10 @@ export class BattleActionsHandler{
 		this.actions.push(new SwapPokemon(battle,request, choices, ignoreTrapping))
 	}
 
+	addChatMessage(room: BattleRoom){
+		this.actions.push(new SendChatMessage(room))
+	}
+
 	addForfeit(){
 		if (!config.ALLOW_RAGE_QUIT) return;
 		this.actions.push(new Forfeit())
@@ -71,9 +76,19 @@ export class BattleActionsHandler{
 		// we delay in case actions take time to be added
 		await delay(1000)
 		if (this.actions.length === 0) return;
-		if (Client.actionHandlers.find(handler => handler.arguments.find((arg: ActionData) => this.actions.filter(action => action.Name == arg.name).length > 0) !== undefined) === undefined){
-			return;
-		}
+
+		// this doesn't work as javascript strict something or other idk.
+		// const hasMatchingHandler = Client.actionHandlers.some(handler =>
+		// 	handler.arguments.some((arg: ActionData) =>
+		// 		this.actions.some(action => action.Name === arg.name)
+		// 	)
+		// );
+
+		// if (!hasMatchingHandler) {
+		// 	console.log("cancelled a register battle actions as there is a matching handler");
+		// 	return;
+		// }
+
 		console.log("this actions length: " + this.actions.length);
 
 		let force: ForceActions = {query: "", actionNames: []}

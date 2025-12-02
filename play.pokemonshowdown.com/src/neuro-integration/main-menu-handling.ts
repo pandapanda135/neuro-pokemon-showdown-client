@@ -51,12 +51,15 @@ async function handleLoad(): Promise<void> {
 		await delay(1000);
 	}
 
+	if (config.USERNAME === "") return;
+
 	if (PS.user.name !== config.USERNAME){
 		console.log("logging in: " + PS.user.name);
 		await logInFlow()
 		await delay(1000)
 	}
 
+	if (!config.REGISTER_SELECT_FORMAT) return;
 	let actions: NeuroAction<any>[] = [new SelectFormat()]
 	let force: ForceActions = {query: "You need to select a format to play from these options", actionNames: ["select_format"]}
 	registerActions(actions, force);

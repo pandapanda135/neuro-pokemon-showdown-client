@@ -549,6 +549,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 		</button>;
 	}
 	renderMoveMenu(choices: BattleChoiceBuilder) {
+		this.props.room
 		const moveRequest = choices.currentMoveRequest()!;
 
 		const canDynamax = moveRequest.canDynamax && !choices.alreadyMax;
@@ -902,6 +903,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			this.team = request.side.pokemon;
 		}
 		this.actionsHandler.addForfeit()
+		this.actionsHandler.addChatMessage(this.props.room)
 		switch (request.requestType) {
 		case 'move': {
 			const index = choices.index();

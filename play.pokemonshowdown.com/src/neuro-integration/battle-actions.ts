@@ -1,6 +1,8 @@
+import type { BattlePanel } from "../../../replay.pokemonshowdown.com/src/replays-battle";
 import type { Battle, ServerPokemon } from "../battle";
 import type { BattleChoiceBuilder, BattleMoveRequest, BattleRequestActivePokemon, BattleSwitchRequest } from "../battle-choices";
 import { PS } from "../client-main";
+import type { BattleRoom } from "../panel-battle";
 import { BattleActionsHandler } from "./battle-handling";
 import { ActionResult, NeuroAction, type ActionData } from "./helpers/action-helpers";
 
@@ -176,6 +178,30 @@ export class Forfeit extends NeuroAction{
 
 	constructor(){
 		super("rage_quit","Rage quit this current battle.",{type: 'object'})
+	}
+
+}
+
+export class SendChatMessage extends NeuroAction<string>{
+	override Validation(data: ActionData): ActionResult<string> {
+		if (typeof data.params.message !== "string"){
+			return new ActionResult(false, "You must provide a valid string.")
+		}
+		var message: string = data.params.message
+		// I think the max length in new client is actually shorter but I can't find it so this will do :(
+		if (message === "") return new ActionResult(false, "You must provide a value to send.");
+		if (message.length >= 80000) return new ActionResult(false, "The message you tried to send was too long.");
+
+		return new ActionResult(true,"Sending " + message, message)
+	}
+	override async Execute(data: string): Promise<void> {
+		this.room.send(data);
+		// we don't reregister actions as actions are registered when the room is handled, this may change in the future.
+	}
+
+	constructor(private room: BattleRoom){
+		const schema = {type: 'object',properties: {message:  {type: 'string'}},required: ["message"]}
+		super("send_chat_message","Send a message in the chat",schema)
 	}
 
 }
