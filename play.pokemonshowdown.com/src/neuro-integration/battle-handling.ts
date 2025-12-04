@@ -4,9 +4,10 @@ import type { BattleChoiceBuilder, BattleMoveRequest, BattleRequest, BattleReque
 import type { Args, KWArgs } from "../battle-text-parser";
 import { PS } from "../client-main";
 import type { BattleRoom } from "../panel-battle";
-import { ActivateSpecial, Forfeit, SelectMove, SendChatMessage, SwapPokemon } from "./battle-actions";
+import { ActivateSpecial, Forfeit, SelectMove, SelectTarget, SendChatMessage, SwapPokemon } from "./battle-actions";
 import { NeuroAction, registerActions, sendContext, type ActionData, type ForceActions } from "./helpers/action-helpers";
-import { Client, config, delay } from "./helpers/setup";
+import { config, delay } from "./helpers/setup";
+import { AcceptChallenge, Rematch } from "./after-battle";
 
 export function battleStart(args: Args, kw: KWArgs, preempt?: boolean) {
 	console.log("battle start");
@@ -48,6 +49,10 @@ export class BattleActionsHandler{
 		this.actions.push(new SwapPokemon(battle,request, choices, ignoreTrapping))
 	}
 
+	addSelectTarget(battle: Battle, choice: BattleChoiceBuilder){
+		this.actions.push(new SelectTarget(battle, choice))
+	}
+
 	addChatMessage(room: BattleRoom){
 		this.actions.push(new SendChatMessage(room))
 	}
@@ -69,6 +74,10 @@ export class BattleActionsHandler{
 		if ((canDynamax || canMegaEvo || canMegaEvoX || canMegaEvoY || canZMove || canUltraBurst || canTerastallize)){
 			this.actions.push(new ActivateSpecial(moveRequest))
 		}
+	}
+
+	EndGameActions(): void{
+		this.actions.push(new AcceptChallenge(), new Rematch())
 	}
 
 	// TODO: issue with registering actions when the rending update is in a place that doesn't matter e.g. a message being sent in chat.

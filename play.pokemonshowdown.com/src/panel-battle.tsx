@@ -919,6 +919,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 					<div class="switchcontrols">
 						<div class="switchmenu">
 							{this.renderMoveTargetControls(request, choices)}
+							{this.actionsHandler.addSelectTarget(this.props.room.battle, choices)}
 						</div>
 					</div>
 					{this.actionsHandler.registerBattleActions()}
@@ -1029,6 +1030,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 					<button class="button" data-cmd={`/closeand /challenge ${room.battle.farSide.id},${room.battle.tier}`}>
 						<strong>Rematch</strong><br /><small>(closes this battle)</small>
 					</button>
+					{this.actionsHandler.EndGameActions()}
 				</p>
 			) : (
 				<p>

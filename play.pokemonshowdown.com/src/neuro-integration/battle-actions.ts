@@ -1,10 +1,9 @@
-import type { BattlePanel } from "../../../replay.pokemonshowdown.com/src/replays-battle";
-import type { Battle, ServerPokemon } from "../battle";
+import type { Battle, Pokemon, ServerPokemon } from "../battle";
 import type { BattleChoiceBuilder, BattleMoveRequest, BattleRequestActivePokemon, BattleSwitchRequest } from "../battle-choices";
 import { PS } from "../client-main";
 import type { BattleRoom } from "../panel-battle";
-import { BattleActionsHandler } from "./battle-handling";
 import { ActionResult, NeuroAction, type ActionData } from "./helpers/action-helpers";
+import type { MoveTarget } from "../battle-dex-data";
 
 export class SelectMove extends NeuroAction<string> {
 	override Validation(data: ActionData): ActionResult<string> {
@@ -36,22 +35,8 @@ export class SelectMove extends NeuroAction<string> {
 	}
 
 	static getActiveMoves(current: BattleRequestActivePokemon): string[]{
-		// console.log("running active moves");
-		// if (PS === undefined || PS.rooms === undefined) return [];
-
-		// for (const roomID in PS.rooms) {
-		// 	console.log("room id: " + roomID);
-		// 	if (!PS.rooms[roomID]) continue;
-		// 	console.log("room name: " + PS.rooms[roomID].id + "    type:" + PS.rooms[roomID].type);
-		// 	console.log("room" + printObj(PS.rooms[roomID]));
-		// }
-
-		// const room: BattleRoom = PS.rooms["battle"] as BattleRoom || null
 		let moves: string[] | undefined = current.moves.map((move, i) =>{
 			if (move.disabled) return "";
-			// if (current.maxMoves === undefined) return "";
-			// console.log("max move amount: " + current.maxMoves.length);
-			// console.error("adding: " + current.maxMoves[i].name);
 
 			console.log("adding move: " + move.name);
 			return move.name;
@@ -142,10 +127,6 @@ export class ActivateSpecial extends NeuroAction{
 	}
 	override async Execute(): Promise<void> {
 		this.GetElement()?.click()
-
-		// let handler: BattleActionsHandler = new BattleActionsHandler()
-		// handler.addSelectMove(this.active)
-		// handler.registerBattleActions()
 	}
 	constructor(private active: BattleRequestActivePokemon){
 		super("activate_special","Activate special move",{type: 'object'})
@@ -165,6 +146,81 @@ export class ActivateSpecial extends NeuroAction{
 		}
 
 		return null;
+	}
+}
+
+export class SelectTarget extends NeuroAction<string>{
+	override Validation(data: ActionData): ActionResult<string> {
+		var name: string = data.params.target;
+
+		if (!SelectTarget.GetValidPokemon(this.battle, this.choice).includes(name)){
+			return new ActionResult(false, "You provided an invalid value")
+		}
+
+		return new ActionResult(true, "Attacking " + name, name)
+	}
+	override async Execute(data: string): Promise<void> {
+		var buttons: HTMLCollection | undefined = document.querySelector<HTMLButtonElement>('.switchmenu')?.children;
+		if (buttons == undefined) {
+			console.error("Error with getting swapmenu buttons");
+			return;
+		}
+		for (const ele of buttons) {
+			let button: HTMLInputElement | undefined | null = ele as HTMLInputElement;
+			if (button === undefined || button === null) continue;
+
+			console.log("button text content: " + button.textContent + "  data: " + data);
+			if (button.textContent !== data) continue;
+
+			button.click();
+			break;
+		}
+	}
+
+	constructor(private battle: Battle, private choice: BattleChoiceBuilder){
+		const schema = {type: 'object', properties: {target: {enum: SelectTarget.GetValidPokemon(battle, choice)}}, required: ['target']};
+		super("select_target", "Select a target to use your last selected move on.", schema);
+	}
+
+	private static GetValidPokemon(battle: Battle, choice: BattleChoiceBuilder): string[] {
+		// copied from panel-battle as I don't think there is a better way to do this without delaying until UI is displayed.
+		var pokemonNames: string[] = []
+		let moveTarget: MoveTarget | undefined = choice.currentMove()?.target;
+		if ((moveTarget === 'adjacentAlly' || moveTarget === 'adjacentFoe') && battle.gameType === 'freeforall') {
+			moveTarget = 'normal';
+		}
+		const userSlot: number = choice.index() + Math.floor(battle.mySide.n / 2) * battle.pokemonControlled;
+		const userSlotCross: number = battle.farSide.active.length - 1 - userSlot;
+
+		battle.farSide.active.map((pokemon, i) => {
+			var disabled: boolean = this.CanUse(pokemon, i, userSlotCross, moveTarget);
+			if (!disabled) return "";
+
+			pokemonNames.push(pokemon?.name ?? "")
+		}).reverse()
+
+		battle.nearSide.active.map((pokemon, i) => {
+			var disabled: boolean = this.CanUse(pokemon, i, userSlotCross, moveTarget);
+			if (!disabled) return "";
+			if (moveTarget !== 'adjacentAllyOrSelf' && userSlot === i) disabled = true;
+
+			pokemonNames.push(pokemon?.name ?? "")
+		})
+
+		return pokemonNames.filter(name => name.length !== 0);
+	}
+
+	private static CanUse(pokemon: Pokemon | null, i: number, userSlotCross: number, moveTarget: MoveTarget | undefined): boolean{
+		let disabled: boolean = false;
+		if (moveTarget === 'adjacentAlly' || moveTarget === 'adjacentAllyOrSelf') {
+			disabled = true;
+		} else if (moveTarget === 'normal' || moveTarget === 'adjacentFoe') {
+			if (Math.abs(userSlotCross - i) > 1) disabled = true;
+		}
+
+		if (pokemon?.fainted) return false;
+		if (disabled || pokemon == null || pokemon?.name == undefined) return false;
+		return disabled
 	}
 }
 
