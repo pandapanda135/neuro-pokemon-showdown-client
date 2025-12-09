@@ -20,6 +20,8 @@ import { Teams } from './battle-teams';
 import { BattleTextParser, type Args, type KWArgs } from './battle-text-parser';
 import { Net } from './client-connection'; // optional
 import { Config } from './client-main';
+import { TurnStrings } from './neuro-integration/battle-handling';
+import { printObj } from './neuro-integration/helpers/setup';
 
 // Caja
 declare const html4: any;
@@ -57,6 +59,8 @@ export class BattleLog {
 	perspective: -1 | 0 | 1 = -1;
 	getHighlight: ((line: Args) => boolean) | null = null;
 	constructor(elem: HTMLDivElement, scene?: BattleScene | null, innerElem?: HTMLDivElement) {
+		console.error("Creating battle log");
+
 		this.elem = elem;
 
 		if (!innerElem) {
@@ -124,6 +128,11 @@ export class BattleLog {
 	}
 	add(args: Args, kwArgs?: KWArgs, preempt?: boolean, showTimestamps?: 'minutes' | 'seconds') {
 		if (kwArgs?.silent) return;
+		console.log("add in ts: " + args);
+		if (kwArgs !== undefined){
+			console.log("kwargs add: " + printObj(kwArgs));
+			
+		}
 		const battle = this.scene?.battle;
 		if (battle?.seeking) {
 			if (battle.stepQueue.length > 2000) {
@@ -329,6 +338,7 @@ export class BattleLog {
 		case 'initdone':
 			return;
 
+		// ?: This is for anything that would for battle stuff
 		default:
 			this.addBattleMessage(args, kwArgs);
 			this.joinLeave = null;
@@ -340,6 +350,10 @@ export class BattleLog {
 		}
 	}
 	addBattleMessage(args: Args, kwArgs?: KWArgs) {
+		console.log("addBattleMessage in ts: " + args.toString());
+		if (kwArgs !== undefined){
+			console.log("kwargs: " + printObj(kwArgs));
+		}
 		switch (args[0]) {
 		case 'warning':
 			this.message('<strong>Warning:</strong> ' + BattleLog.escapeHTML(args[1]));
@@ -394,6 +408,7 @@ export class BattleLog {
 			break;
 		}
 	}
+	// April fools day
 	addAFDMessage(args: Args, kwArgs: KWArgs = {}) {
 		if (!Dex.afdMode) return;
 		if (!this.battleParser || !this.scene) return;
@@ -932,6 +947,7 @@ export class BattleLog {
 	 * parseMessage
 	 */
 	parseLogMessage(message: string): [string, string] {
+		TurnStrings.push(message)
 		const messages = message.split('\n').map(line => {
 			line = BattleLog.escapeHTML(line);
 			line = line.replace(/\*\*(.*)\*\*/, '<strong>$1</strong>');
@@ -945,6 +961,7 @@ export class BattleLog {
 		];
 	}
 	message(message: string, sceneMessage = message) {
+		console.log("battle log message: " + message);
 		this.scene?.message(sceneMessage);
 		this.addDiv('battle-history', message);
 	}
@@ -977,6 +994,7 @@ export class BattleLog {
 		this.updateScroll();
 	}
 	addSpacer() {
+		// console.log("adding spacer");
 		this.addDiv('spacer battle-history', '<br />');
 	}
 	changeUhtml(id: string, htmlSrc: string, forceAdd?: boolean) {
@@ -1221,6 +1239,7 @@ export class BattleLog {
 	parseChatMessage(
 		message: string, name: string, timestamp: string, isHighlighted?: boolean
 	): [string, string, boolean?] {
+		console.log("parsing chat message: " + message);
 		let showMe = !BattleLog.prefs('chatformatting')?.hideme;
 		let group = ' ';
 		if (!/[A-Za-z0-9]/.test(name.charAt(0))) {

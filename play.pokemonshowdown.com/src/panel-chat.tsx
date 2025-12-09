@@ -19,6 +19,7 @@ import { PSLoginServer } from "./client-connection";
 import type { BattleRoom } from "./panel-battle";
 import { BattleChoiceBuilder } from "./battle-choices";
 import { ChatTournament, TournamentBox } from "./panel-chat-tournament";
+import { challengers } from "./neuro-integration/after-battle";
 
 declare const formatText: any; // from js/server/chat-formatter.js
 
@@ -594,6 +595,8 @@ export class ChatRoom extends PSRoom {
 					body: `Format: ${BattleLog.formatName(challenge.formatName)}`,
 					id: 'challenge',
 				});
+				console.log("adding challenge formats: " + name + "  format: " + challenge.formatName);
+				challengers.push({name: name, format: challenge.formatName})
 				// app.playNotificationSound();
 			}
 		}
@@ -1208,6 +1211,7 @@ class ChatPanel extends PSRoomPanel<ChatRoom> {
 		if (defaultFormat?.startsWith('!!')) {
 			room.args!.format = undefined;
 		}
+		// ?: This is where challenging ui is handled
 		const challengeTo = room.challenging ? <div class="challenge">
 			<p>Waiting for {room.pmTarget}...</p>
 			<TeamForm format={room.challenging.formatName} teamFormat={room.challenging.teamFormat} onSubmit={null}>

@@ -549,7 +549,6 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 		</button>;
 	}
 	renderMoveMenu(choices: BattleChoiceBuilder) {
-		this.props.room
 		const moveRequest = choices.currentMoveRequest()!;
 
 		const canDynamax = moveRequest.canDynamax && !choices.alreadyMax;
@@ -922,7 +921,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 							{this.actionsHandler.addSelectTarget(this.props.room.battle, choices)}
 						</div>
 					</div>
-					{this.actionsHandler.registerBattleActions()}
+					{this.actionsHandler.registerBattleActions(this.props.room.battle)}
 				</div>;
 			}
 
@@ -945,7 +944,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 					<h3 class="switchselect">Switch</h3>
 					{this.renderSwitchMenu(request, choices)}
 				</div>
-				{this.actionsHandler.registerBattleActions()}
+				{this.actionsHandler.registerBattleActions(this.props.room.battle, request, choices)}
 			</div>;
 		} case 'switch': {
 			const pokemon = request.side.pokemon[choices.index()];
@@ -958,7 +957,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 					<h3 class="switchselect">Switch</h3>
 					{this.renderSwitchMenu(request, choices, true)}
 				</div>
-				{this.actionsHandler.registerBattleActions()}
+				{this.actionsHandler.registerBattleActions(this.props.room.battle, request, choices)}
 			</div>;
 		} case 'team': {
 			return <div class="controls">
@@ -1030,7 +1029,9 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 					<button class="button" data-cmd={`/closeand /challenge ${room.battle.farSide.id},${room.battle.tier}`}>
 						<strong>Rematch</strong><br /><small>(closes this battle)</small>
 					</button>
-					{this.actionsHandler.EndGameActions()}
+					{this.actionsHandler.endGameActions()}
+					{this.actionsHandler.registerBattleActions(this.props.room.battle)}
+					{this.actionsHandler = new BattleActionsHandler()}
 				</p>
 			) : (
 				<p>

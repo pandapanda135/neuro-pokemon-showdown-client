@@ -24,10 +24,10 @@ export class AcceptChallenge extends NeuroAction<RecievedChallenger> {
 
 	constructor(){
 		super("accept_challenge", "Accept a challenge request against an opponent.",
-			{type: "object", properties: {opponent: {enum: challengers.map(challenge => challenge.name)},
-			format: {enum: challengers.map(challenge => challenge.format)}},
-			required: ['opponent']})
-		}
+		{type: "object", properties: {opponent: {enum: challengers.map(challenge => challenge.name)},
+		format: {enum: challengers.map(challenge => challenge.format)}},
+		required: ['opponent']})
+	}
 }
 
 export class Rematch extends NeuroAction{
