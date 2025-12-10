@@ -26,6 +26,31 @@ export class ActionResult<T = void> {
 	) {}
 }
 
+class HandlerWrapper {
+	constructor(
+		private actions: NeuroAction<any>[],
+		public actionObjects: ActionObject[]
+	){}
+
+	Handler = (actionData: ActionData): void => {
+		this.actions.forEach(async (action: NeuroAction<any>) => {
+			if (action.Name !== actionData.name) return;
+
+			const result:ActionResult<any> = action.Validation(actionData)
+			Client.sendActionResult(actionData.id, result.result, result.message)
+			if (!result.result){
+				return;
+			}
+			Client.unregisterActions(this.actionObjects.map((action) => action.name))
+
+			await action.Execute(result.returnType)
+			Client.actionHandlers = Client.actionHandlers.filter(h => h !== this.Handler)
+			currentHandlers = currentHandlers.filter(h => h !== this);
+			return;
+		})
+	}
+}
+
 export type ActionData = {
 	name: string;
 	id: string;
@@ -46,6 +71,8 @@ function toValidAction(action: NeuroAction<any>): ActionObject {
 	}
 }
 
+/** This stores all of the currently reigstered ActionHandlers from the neuro sdk, these handle running validation and execution when an action is ran. */
+export let currentHandlers: HandlerWrapper[] = [];
 /**
  * This handles registering and forcing actions using helper classes
  * @param actionTypes These are the actions you want to send to Neuro
@@ -53,15 +80,22 @@ function toValidAction(action: NeuroAction<any>): ActionObject {
  */
 export function registerActions(actionTypes: NeuroAction<any>[], forceActions?: ForceActions): void {
 	// this checks if ws is open
-	if (!isOpen()) return;
+	if (!isOpen()) throw new Error("Tried to register actions when the client has not been connected yet.");
 
 	let actions: ActionObject[] = [];
-
 	actionTypes.forEach(action => {
 		actions.push(toValidAction(action))
 	});
 
-	Client.registerActions(actions)
+	const handler = new HandlerWrapper(actionTypes, actions);
+
+	if (currentHandlers.find(h => h.actionObjects.find(obj => actions.map(ac => ac.name).includes(obj.name)) !== undefined) !== undefined){
+		throw new Error("Tried registering actions that are already registered." + actions.map(ac => ac.name).join("\n"));
+	}
+	console.log("adding handler to current handlers");
+	currentHandlers.push(handler);
+
+	Client.registerActions(actions);
 	if (forceActions !== undefined){
 		if (forceActions.actionNames.length == 0){
 			forceActions.actionNames = actions.map(a => a.name)
@@ -72,26 +106,11 @@ export function registerActions(actionTypes: NeuroAction<any>[], forceActions?: 
 		Client.forceActions(forceActions.query, forceActions.actionNames, state, ephemeral)
 	}
 
-	const handler = (actionData: ActionData) => {
-		actionTypes.forEach(async (action: NeuroAction<any>) => {
-			if (action.Name !== actionData.name) return;
-
-			const result:ActionResult<any> = action.Validation(actionData)
-			Client.sendActionResult(actionData.id, result.result, result.message)
-			if (!result.result){
-				return;
-			}
-			Client.unregisterActions(actions.map((action) => action.name))
-
-			await action.Execute(result.returnType)
-			Client.actionHandlers = Client.actionHandlers.filter(handler => handler !== handler)
-			return;
-		})
-	};
-
-	Client.onAction(handler)
+	Client.onAction(handler.Handler)
 }
 
 export function sendContext(message: string, silent?: boolean) {
+	if (!isOpen()) throw new Error("Tried to send context when the client is not connected yet.")
+
 	Client.sendContext(message,silent === undefined ? true : silent)
 }
