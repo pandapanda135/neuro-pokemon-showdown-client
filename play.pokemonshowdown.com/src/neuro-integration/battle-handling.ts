@@ -27,8 +27,13 @@ export function battleStart(args: Args, kw: KWArgs, preempt?: boolean) {
 }
 
 export function newTurn(args: Args, kw: KWArgs, preempt?: boolean) {
+	const turnNumber: number = Number.parseInt(args[1]);
 	console.log("new turn args: " + args.toString());
-	sendContext("This is happened during turn: " + args[1] + TurnStrings.map(str => str.trim()).join("\n"))
+	let str = "This is happened during turn " + (turnNumber - 1).toString() + ":\n" + TurnStrings.map(str => str.trim()).join("\n");
+	if (turnNumber == 1){
+		str = "A new battle just started, this is what has happened in the set-up:\n" + TurnStrings.map(str => str.trim()).join("\n");
+	}
+	sendContext(str)
 	TurnStrings = [];
 }
 
@@ -101,18 +106,6 @@ export class BattleActionsHandler{
 		await delay(1000)
 		if (this.actions.length === 0) return;
 
-		// this doesn't work as javascript strict something or other idk.
-		// const hasMatchingHandler = Client.actionHandlers.some(handler =>
-		// 	handler.arguments.some((arg: ActionData) =>
-		// 		this.actions.some(action => action.Name === arg.name)
-		// 	)
-		// );
-
-		// if (!hasMatchingHandler) {
-		// 	console.log("cancelled a register battle actions as there is a matching handler");
-		// 	return;
-		// }
-
 		console.log("this actions length: " + this.actions.length);
 
 		let force: ForceActions = {query: "", state: "", actionNames: []}
@@ -120,41 +113,53 @@ export class BattleActionsHandler{
 		let endGameState: boolean = false;
 
 		const currentIndex: number| undefined = choices?.index();
-		const currentPokemon: ServerPokemon | undefined = request?.side?.pokemon[currentIndex!];
+		var currentPokemon: ServerPokemon | undefined;
+		if (currentIndex != undefined){
+			currentPokemon = request?.side?.pokemon[currentIndex]
+		}
 		for (const action of this.actions) {
 			console.log("going through action: " + action.Name + "   typeof: " + typeof action);
+			var battleRequest: BattleRequestActivePokemon | null | undefined = choices?.currentMoveRequest();
 			switch (action.Name) {
 				case "select_move":
 					console.log("adding select move");
-					const battleRequest: BattleRequestActivePokemon | null | undefined = choices?.currentMoveRequest();
 					if (request == undefined || choices == undefined || battleRequest == null) break;
-					force.state += `These are the moves your ${currentPokemon?.name} has available:\n-${SelectMove.getActiveMoves(battleRequest).join("\n- ")}\n`;
+					force.state += `These are the moves your ${currentPokemon?.name} has available:\n- ${SelectMove.getActiveMoves(battleRequest).join("\n- ")}\n`;
 					break;
 				case "swap_pokemon":
-					console.log("adding swap pokemon");
-					if (request == undefined || choices == undefined || battleRequest == null || battle.myPokemon == null) break;
+					console.log(`adding swap pokemon: request: ${request}   choices: ${choices}   battle request ${battleRequest}`);
+					if (request == undefined || choices == undefined || battle.myPokemon == null) break;
 
-					console.log("myside pokemon amount: " + battle.mySide.pokemon.length);
-					force.state += `These are the pokemon you can switch to and their moves and abilities:${battle.myPokemon.map(pokemon => {
-						if (pokemon.name === currentPokemon?.name) return "";
+					var validPokemon = `${battle.myPokemon.map(pokemon => {
+						if (pokemon.active) return "";
 
-						// TODO: these also aren't correct should probably look at UI
+						// TODO: these also aren't correct should probably look at UI (They are now correct? idk why maybe I just forgot to build.)
 						const ability: Ability = battle.dex.abilities.get(pokemon.ability!)
 						const item: Item = battle.dex.items.get(pokemon.item)
 						const moves: string[] = pokemon.moves.map(move => battle.dex.moves.get(move).name)
-						return `\n# Name: ${pokemon.name}\n## Ability: ${ability.name}\n## Item: ${item.name}\n## Moves: \n- ${moves.join("\n- ")}`;
+						return `\n# Name: ${pokemon.name}\n## Stats:\n- Health: ${pokemon.hp}\n- Max Health: ${pokemon.maxhp}\n- Ability: ${ability.name}\n- Item: ${item.name}\n## Moves:\n- ${moves.join("\n- ")}`;
 					}).filter(move => move.length !== 0)}\n`;
+
+					if (currentPokemon?.fainted) {
+						force.state += `Your main pokemon died, so you will need to change your pokemon before the next turn happens.
+						These are your available options and what has happened in this turn:${validPokemon}\n
+						This is what has happened this turn\n${TurnStrings.map(str => str.trim()).join("\n")}`;
+						force.ephemeral = true;
+						break;
+					}
+					console.log("myside pokemon amount: " + battle.mySide.pokemon.length);
+					force.state += `These are the pokemon you can switch to and their moves and abilities:${validPokemon}`
 					break;
 				case "select_target":
 					if (choices == undefined) break;
-					let moveTarget = choices.currentMove()?.target;
+					var moveTarget = choices.currentMove()?.target;
 					if ((moveTarget === 'adjacentAlly' || moveTarget === 'adjacentFoe') && battle.gameType === 'freeforall') {
 						moveTarget = 'normal';
 					}
-					const userSlot = choices.index() + Math.floor(battle.mySide.n / 2) * battle.pokemonControlled;
-					const userSlotCross = battle.farSide.active.length - 1 - userSlot;
+					var userSlot = choices.index() + Math.floor(battle.mySide.n / 2) * battle.pokemonControlled;
+					var userSlotCross = battle.farSide.active.length - 1 - userSlot;
 
-					const targets: string[] = battle.farSide.active.map((pokemon, i) => {
+					var targets: string[] = battle.farSide.active.map((pokemon, i) => {
 						if (pokemon == null) return "";
 						if (moveTarget === 'adjacentAlly' || moveTarget === 'adjacentAllyOrSelf') {
 							return "";
@@ -187,7 +192,6 @@ export class BattleActionsHandler{
 		}
 
 		console.log("force state: " + force.state);
-		
 		registerActions(this.actions,force)
 	}
 }
