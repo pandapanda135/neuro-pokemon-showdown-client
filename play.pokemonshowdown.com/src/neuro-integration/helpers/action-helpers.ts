@@ -37,11 +37,14 @@ class HandlerWrapper {
 			if (action.Name !== actionData.name) return;
 
 			const result:ActionResult<any> = action.Validation(actionData)
+			// we need to unregister before sending the action result
+			if (result.result){
+				Client.unregisterActions(this.actionObjects.map((action) => action.name))
+			}
 			Client.sendActionResult(actionData.id, result.result, result.message)
 			if (!result.result){
 				return;
 			}
-			Client.unregisterActions(this.actionObjects.map((action) => action.name))
 
 			await action.Execute(result.returnType)
 			Client.actionHandlers = Client.actionHandlers.filter(h => h !== this.Handler)
@@ -89,6 +92,7 @@ export function registerActions(actionTypes: NeuroAction<any>[], forceActions?: 
 
 	const handler = new HandlerWrapper(actionTypes, actions);
 
+	// The Neuro API does not allow for replacing actions that are already registered
 	if (currentHandlers.find(h => h.actionObjects.find(obj => actions.map(ac => ac.name).includes(obj.name)) !== undefined) !== undefined){
 		throw new Error("Tried registering actions that are already registered." + actions.map(ac => ac.name).join("\n"));
 	}

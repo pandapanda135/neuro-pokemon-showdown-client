@@ -74,15 +74,7 @@ export class BattleActionsHandler{
 	}
 
 	activateSpecial(moveRequest: BattleRequestActivePokemon, choices: BattleChoiceBuilder): void{
-		const canDynamax = moveRequest.canDynamax && !choices.alreadyMax;
-		const canMegaEvo = moveRequest.canMegaEvo && !choices.alreadyMega;
-		const canMegaEvoX = moveRequest.canMegaEvoX && !choices.alreadyMega;
-		const canMegaEvoY = moveRequest.canMegaEvoY && !choices.alreadyMega;
-		const canZMove = moveRequest.zMoves && !choices.alreadyZ;
-		const canUltraBurst = moveRequest.canUltraBurst;
-		const canTerastallize = moveRequest.canTerastallize;
-
-		if ((canDynamax || canMegaEvo || canMegaEvoX || canMegaEvoY || canZMove || canUltraBurst || canTerastallize)){
+		if (BattleActionsHandler.CanUseSpecial(moveRequest, choices)){
 			this.actions.push(new ActivateSpecial(moveRequest))
 		}
 	}
@@ -96,11 +88,10 @@ export class BattleActionsHandler{
 		this.actions.push(new Forfeit())
 	}
 
-	endGameActions(): void{
-		this.actions.push(new AcceptChallenge(), new Rematch())
+	async endGameActions(): Promise<void>{
+		this.actions.push(new AcceptChallenge())
 	}
 
-	// TODO: issue with registering actions when the rending update is in a place that doesn't matter e.g. a message being sent in chat.
 	async registerBattleActions(battle: Battle,request: BattleRequest | undefined = undefined , choices: BattleChoiceBuilder | undefined = undefined): Promise<void>{
 		// we delay in case actions take time to be added
 		await delay(1000)
@@ -109,8 +100,7 @@ export class BattleActionsHandler{
 		console.log("this actions length: " + this.actions.length);
 
 		let force: ForceActions = {query: "", state: "", actionNames: []}
-
-		let endGameState: boolean = false;
+		let sentEndGameState: boolean = false;
 
 		const currentIndex: number| undefined = choices?.index();
 		var currentPokemon: ServerPokemon | undefined;
@@ -121,19 +111,18 @@ export class BattleActionsHandler{
 			console.log("going through action: " + action.Name + "   typeof: " + typeof action);
 			var battleRequest: BattleRequestActivePokemon | null | undefined = choices?.currentMoveRequest();
 			switch (action.Name) {
-				case "select_move":
+				case SelectMove.actionName:
 					console.log("adding select move");
 					if (request == undefined || choices == undefined || battleRequest == null) break;
 					force.state += `These are the moves your ${currentPokemon?.name} has available:\n- ${SelectMove.getActiveMoves(battleRequest).join("\n- ")}\n`;
 					break;
-				case "swap_pokemon":
+				case SwapPokemon.actionName:
 					console.log(`adding swap pokemon: request: ${request}   choices: ${choices}   battle request ${battleRequest}`);
 					if (request == undefined || choices == undefined || battle.myPokemon == null) break;
 
 					var validPokemon = `${battle.myPokemon.map(pokemon => {
 						if (pokemon.active) return "";
 
-						// TODO: these also aren't correct should probably look at UI (They are now correct? idk why maybe I just forgot to build.)
 						const ability: Ability = battle.dex.abilities.get(pokemon.ability!)
 						const item: Item = battle.dex.items.get(pokemon.item)
 						const moves: string[] = pokemon.moves.map(move => battle.dex.moves.get(move).name)
@@ -141,16 +130,14 @@ export class BattleActionsHandler{
 					}).filter(move => move.length !== 0)}\n`;
 
 					if (currentPokemon?.fainted) {
-						force.state += `Your main pokemon died, so you will need to change your pokemon before the next turn happens.
-						These are your available options and what has happened in this turn:${validPokemon}\n
-						This is what has happened this turn\n${TurnStrings.map(str => str.trim()).join("\n")}`;
+						force.state += "Your main pokemon died, so you will need to change your pokemon before the next turn happens. These are your available options and what has happened in this turn:" + validPokemon + "\nThis is what has happened this turn\n" + TurnStrings.map(str => str.trim()).join("\n");
 						force.ephemeral = true;
 						break;
 					}
 					console.log("myside pokemon amount: " + battle.mySide.pokemon.length);
 					force.state += `These are the pokemon you can switch to and their moves and abilities:${validPokemon}`
 					break;
-				case "select_target":
+				case SelectTarget.actionName:
 					if (choices == undefined) break;
 					var moveTarget = choices.currentMove()?.target;
 					if ((moveTarget === 'adjacentAlly' || moveTarget === 'adjacentFoe') && battle.gameType === 'freeforall') {
@@ -172,18 +159,19 @@ export class BattleActionsHandler{
 					}).reverse().filter(str => str?.length !== 0);
 					force.state += `These are the pokemon that you can target:\n-${targets.join("\n-")}`;
 					break;
-				case "activate_special":
+				case ActivateSpecial.actionName:
+					if (battleRequest == null || choices == undefined) break;
+					force.state += `This pokemon can ${BattleActionsHandler.SpecialString(battleRequest, choices)}\n`;
+					break;
+				case Forfeit.actionName:
 					force.state += "";
 					break;
-				case "forfeit":
+				case SendChatMessage.actionName:
 					force.state += "";
 					break;
-				case "send_chat_message":
-					force.state += "";
-					break;
-				case "rematch":
-					if (endGameState) break;
-					endGameState = true;
+				case Rematch.actionName || AcceptChallenge.actionName:
+					if (sentEndGameState) break;
+					sentEndGameState = true;
 					force.state += "The match has ended and now you must decide who you want to fight now.";
 					break;
 				default:
@@ -191,7 +179,53 @@ export class BattleActionsHandler{
 			}
 		}
 
+		force.ephemeral = true;
 		console.log("force state: " + force.state);
 		registerActions(this.actions,force)
+	}
+
+	static CanUseSpecial(moveRequest: BattleRequestActivePokemon, choices: BattleChoiceBuilder): boolean {
+		const canDynamax: boolean | undefined = moveRequest.canDynamax && !choices.alreadyMax;
+		const canMegaEvo: boolean | undefined = moveRequest.canMegaEvo && !choices.alreadyMega;
+		const canMegaEvoX: boolean | undefined = moveRequest.canMegaEvoX && !choices.alreadyMega;
+		const canMegaEvoY: boolean | undefined = moveRequest.canMegaEvoY && !choices.alreadyMega;
+		const canZMove: boolean | undefined = moveRequest.zMoves && !choices.alreadyZ;
+		const canUltraBurst: boolean | undefined = moveRequest.canUltraBurst;
+		const canTerastallize: string | undefined = moveRequest.canTerastallize;
+
+		return canDynamax || canMegaEvo || canMegaEvoX || canMegaEvoY || canZMove || canUltraBurst || canTerastallize != undefined && canTerastallize?.length > 0;
+	}
+
+	/**
+	 * Get the string that applies to the current pokemon's special.
+	 * @returns This will either return a string for the special or an empty string.
+	 */
+	static SpecialString(moveRequest: BattleRequestActivePokemon, choices: BattleChoiceBuilder): string{
+		var str: string = "";
+
+		const canDynamax: boolean | undefined = moveRequest.canDynamax && !choices.alreadyMax;
+		const canMegaEvo: boolean | undefined = moveRequest.canMegaEvo && !choices.alreadyMega;
+		const canMegaEvoX: boolean | undefined = moveRequest.canMegaEvoX && !choices.alreadyMega;
+		const canMegaEvoY: boolean | undefined = moveRequest.canMegaEvoY && !choices.alreadyMega;
+		const canZMove: boolean | undefined = moveRequest.zMoves && !choices.alreadyZ;
+		const canUltraBurst: boolean | undefined = moveRequest.canUltraBurst;
+		const canTerastallize: string | undefined = moveRequest.canTerastallize;
+
+		if (canDynamax){
+			str = moveRequest.gigantamax ? "Gigantamax" : "Dynamax";
+		}
+		else if(canMegaEvo || canMegaEvoX || canMegaEvoY){
+			str = "Mega Evolve";
+		}
+		else if(canZMove){
+			str = "Z Move";
+		}
+		else if(canUltraBurst){
+			str = "Ultra Burst";
+		}
+		else if(canTerastallize){
+			str = "Terastallize";
+		}
+		return str;
 	}
 }

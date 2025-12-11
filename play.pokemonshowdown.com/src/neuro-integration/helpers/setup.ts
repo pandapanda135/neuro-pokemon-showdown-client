@@ -4,11 +4,12 @@ export let Client: NeuroClient
 
 export const config = (window as any).config;
 
-export function printObj(obj: object){
+export function printObj(obj: object, includeDecycle: boolean = false): string{
 	try {
-		JSON.stringify(decycle(obj))
+		return JSON.stringify(includeDecycle ? decycle(obj) : obj)
 	} catch (error) {
 		console.error(error);
+		return "Error parsing object";
 	}
 }
 
@@ -17,7 +18,7 @@ export function printObj(obj: object){
 function decycle(obj: object, stack: any[] = []): any {
     if (!obj || typeof obj !== 'object')
         return obj;
-    
+
     if (stack.includes(obj))
         return null;
 
@@ -35,4 +36,8 @@ export function isOpen(): boolean {
 
 export async function delay(ms:number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve,ms))
+}
+
+export function secondsToMs(ms: number){
+	return ms * 1000;
 }

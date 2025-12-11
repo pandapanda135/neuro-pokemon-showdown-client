@@ -6,6 +6,8 @@ import { ActionResult, NeuroAction, type ActionData } from "./helpers/action-hel
 import type { MoveTarget } from "../battle-dex-data";
 
 export class SelectMove extends NeuroAction<string> {
+	static actionName = "select_move";
+
 	override Validation(data: ActionData): ActionResult<string> {
 		var move:string = data.params["move"]
 
@@ -31,14 +33,13 @@ export class SelectMove extends NeuroAction<string> {
 
 	constructor(private currentPokemon: BattleRequestActivePokemon) {
 		const schema: object = {type: 'object',properties: {move:  {type: 'string',enum: SelectMove.getActiveMoves(currentPokemon)}},required: ["move"]}
-		super("select_move","Select a move to use",schema)
+		super(SelectMove.actionName,"Select a move to use",schema)
 	}
 
 	static getActiveMoves(current: BattleRequestActivePokemon): string[]{
 		let moves: string[] | undefined = current.moves.map((move, i) =>{
 			if (move.disabled) return "";
 
-			console.log("adding move: " + move.name);
 			return move.name;
 		})
 
@@ -48,6 +49,8 @@ export class SelectMove extends NeuroAction<string> {
 }
 
 export class SwapPokemon extends NeuroAction<ServerPokemon>{
+	static actionName = "swap_pokemon";
+
 	override Validation(data: ActionData): ActionResult<ServerPokemon> {
 		if (this.battle.myPokemon === null) return new ActionResult(false,"");
 		let sentName: string = data.params.pokemon
@@ -88,7 +91,7 @@ export class SwapPokemon extends NeuroAction<ServerPokemon>{
 		}
 	}
 	constructor(private battle: Battle,private request: BattleMoveRequest | BattleSwitchRequest, private choices: BattleChoiceBuilder, private ignoreTrapping: boolean | undefined){
-		super("swap_pokemon","Change what pokemon is currently active.", {type: 'object',properties:
+		super(SwapPokemon.actionName,"Change what pokemon is currently active.", {type: 'object',properties:
 			{pokemon:  {type: 'string',enum: SwapPokemon.getPossiblePokemon(battle,request,choices,ignoreTrapping)}},required: ["pokemon"]})
 	}
 
@@ -114,6 +117,8 @@ export class SwapPokemon extends NeuroAction<ServerPokemon>{
 }
 
 export class ActivateSpecial extends NeuroAction{
+	static actionName = "activate_special";
+
 	override Validation(data: ActionData): ActionResult {
 		if (this.GetElement() === null){
 			return new ActionResult(false, "There was an issue activating your special ability.")
@@ -129,7 +134,7 @@ export class ActivateSpecial extends NeuroAction{
 		this.GetElement()?.click()
 	}
 	constructor(private active: BattleRequestActivePokemon){
-		super("activate_special","Activate special move",{type: 'object'})
+		super(ActivateSpecial.actionName,"Activate special move",{type: 'object'})
 	}
 
 	private GetElement(): HTMLInputElement | null {
@@ -150,6 +155,7 @@ export class ActivateSpecial extends NeuroAction{
 }
 
 export class SelectTarget extends NeuroAction<string>{
+	static actionName = "select_target";
 	override Validation(data: ActionData): ActionResult<string> {
 		var name: string = data.params.target;
 
@@ -179,7 +185,7 @@ export class SelectTarget extends NeuroAction<string>{
 
 	constructor(private battle: Battle, private choice: BattleChoiceBuilder){
 		const schema = {type: 'object', properties: {target: {enum: SelectTarget.GetValidPokemon(battle, choice)}}, required: ['target']};
-		super("select_target", "Select a target to use your last selected move on.", schema);
+		super(SelectTarget.actionName, "Select a target to use your last selected move on.", schema);
 	}
 
 	private static GetValidPokemon(battle: Battle, choice: BattleChoiceBuilder): string[] {
@@ -225,6 +231,7 @@ export class SelectTarget extends NeuroAction<string>{
 }
 
 export class Forfeit extends NeuroAction{
+	static actionName = "rage_quit";
 	override Validation(data: ActionData): ActionResult<void> {
 		return new ActionResult(true, "")
 	}
@@ -233,12 +240,14 @@ export class Forfeit extends NeuroAction{
 	}
 
 	constructor(){
-		super("rage_quit","Rage quit this current battle.",{type: 'object'})
+		super(Forfeit.actionName,"Rage quit and lose this current battle.",{type: 'object'})
 	}
 
 }
 
 export class SendChatMessage extends NeuroAction<string>{
+	static actionName = "send_chat_message";
+
 	override Validation(data: ActionData): ActionResult<string> {
 		if (typeof data.params.message !== "string"){
 			return new ActionResult(false, "You must provide a valid string.")
@@ -257,7 +266,7 @@ export class SendChatMessage extends NeuroAction<string>{
 
 	constructor(private room: BattleRoom){
 		const schema = {type: 'object',properties: {message:  {type: 'string'}},required: ["message"]}
-		super("send_chat_message","Send a message in the chat",schema)
+		super(SendChatMessage.actionName,"Send a message in the chat",schema)
 	}
 
 }

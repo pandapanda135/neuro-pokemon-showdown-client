@@ -1,15 +1,18 @@
 import { type ActionData,type ForceActions , ActionResult, NeuroAction, registerActions } from "./helpers/action-helpers";
-import { config, delay, isOpen, printObj } from "./helpers/setup";
+import { config, delay, isOpen, secondsToMs, printObj } from "./helpers/setup";
 import { PS } from "../client-main";
 import { type RoomID } from "../client-main"
+import { AcceptChallenge, challengers } from "./after-battle";
 
-class SelectFormat extends NeuroAction<string> {
+export class SelectFormat extends NeuroAction<string> {
+	static actionName = "select_format"
+
 	Validation(data: ActionData): ActionResult<string> {
 		if (!getFormatNames().includes(data.params.format)){
 			return new ActionResult(false,"You did not provide a valid format.")
 		}
 
-		return new ActionResult(true,"queuing for the format " + data.params.format,data.params.format)
+		return new ActionResult(true,"Queuing for the format " + data.params.format,data.params.format)
 	}
 	async Execute(data: string): Promise<void> {
 		console.log("this is execute data: " + data)
@@ -42,26 +45,39 @@ class SelectFormat extends NeuroAction<string> {
 	}
 	constructor(){
 		const schema: object = {type: 'object',properties: {format:  {type: 'string',enum: getFormatNames()}},required: ["format"]}
-		super("select_format","Select a format to play, this will change what pokemon and rules are applied.",schema);
+		super(SelectFormat.actionName,"Select a format to play, this will change what pokemon and rules are applied.",schema);
 	}
 }
 
 async function handleLoad(): Promise<void> {
 	while (!isOpen()){
-		await delay(1000);
+		await delay(secondsToMs(1));
 	}
 
-	if (config.USERNAME === "") return;
+	if (config.USERNAME === "" || config.PASSWORD === "") throw new Error("Either the username or password were not set in the config.");
 
-	if (PS.user.name !== config.USERNAME){
+	// use while in case log in fails for whatever reason
+	while (PS.user.name !== config.USERNAME){
 		console.log("logging in: " + PS.user.name);
 		await logInFlow()
-		await delay(1000)
+		await delay(secondsToMs(1))
 	}
 
-	if (!config.REGISTER_SELECT_FORMAT) return;
-	let actions: NeuroAction<any>[] = [new SelectFormat()]
-	let force: ForceActions = {query: "You need to select a format to play from these options", actionNames: ["select_format"]}
+	let actions: NeuroAction<any>[] = [];
+	let force: ForceActions = {query: "", actionNames: []};
+	if (config.ALLOW_MAIN_MENU_CHALLENGER){
+		// we don't register this action again so we wait for people to send challenges
+		while (challengers.filter(challenge => !isValidFormat(challenge.format)).length < 5){
+			await delay(secondsToMs(20));
+		}
+		actions.push(new AcceptChallenge());
+		force.query += "You can accept a challenge for a battle from one of your viewers and try to beat them.\n"
+	}
+	if (config.REGISTER_SELECT_FORMAT) {
+		actions.push(new SelectFormat());
+		force.query += "You can select a format to play from these options.";
+	}
+
 	registerActions(actions, force);
 }
 
@@ -86,7 +102,6 @@ async function logInFlow() {
 		return;
 	}
 	loginButton.click()
-	console.log("tags name: " + loginButton.tagName + loginButton.parentElement?.className)
 	await delay(1000)
 
 	// login popup is called "login"
@@ -114,11 +129,9 @@ function getLoginSubmitButton() {
 	let submitButton: HTMLButtonElement | undefined = undefined;
 	console.log("going through buttonbar");
 	for (const element of document.getElementsByClassName("buttonbar")) {
-		console.log("element in button-bar");
 		for (const ele of element.children) {
 			// stops issue with password button :)
 			if (ele.children.length > 0){
-				console.log("setting button");
 				submitButton = ele as HTMLButtonElement
 				break;
 			}
@@ -131,25 +144,47 @@ function getLoginSubmitButton() {
 	}
 }
 
-function getFormatNames(): string[]{
+type Format = {
+	id: string,
+	name: string,
+	team: string,
+	// ui stuff
+	section: string,
+	column: number,
+	searchShow: boolean,
+	challengeShow: boolean
+	// end ui
+	rated: boolean,
+	teamBuilderLevel: number | null,
+	teamBuilderFormat: string,
+	isTeambuilderFormat: boolean,
+	effectFormat: string
+}
+
+export function getFormatNames(): string[]{
 	let names:string[] = [];
 
-	// idk why window is being so annoying and making me do this but I need to do this
-	const formats = window.BattleFormats;
-	const disallowedFormats: any = window.DisallowedBattleFormats;
+	for (const key in window.BattleFormats) {
+		if (!isValidFormat(key)) continue;
 
-	for (const key in formats) {
-		let format: any = formats[key]
-		if ((disallowedFormats !== undefined && disallowedFormats.includes(key)) || format.isTeambuilderFormat || format.partner || !format.searchShow || (!config.ALLOW_RATED_FORMATS && format.rated)){
-			continue;
-		}
-
-		console.log("adding format: " + printObj(format));
-
-		names.push(format.name);
+		names.push(formatKeyToName(key));
 	}
 
 	return names;
+}
+
+export function isValidFormat(key: string): boolean{
+	const disallowedFormats: any = window.DisallowedBattleFormats;
+	let format: Format = window.BattleFormats[key]
+	if ((disallowedFormats !== undefined && disallowedFormats.includes(key)) || format.isTeambuilderFormat || !format.searchShow || (!config.ALLOW_RATED_FORMATS && format.rated)){
+		return false;
+	}
+
+	return true;
+}
+
+export function formatKeyToName(key: string): string{
+	return window.BattleFormats[key].name;
 }
 
 handleLoad()
