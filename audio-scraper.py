@@ -1,6 +1,5 @@
 import requests
 import os
-from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
 def download_file(url, local_filename):

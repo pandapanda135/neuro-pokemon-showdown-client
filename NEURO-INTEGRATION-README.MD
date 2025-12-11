@@ -4,6 +4,8 @@ When using the integration the `testclient-beta.html` file in play.pokemonshowdo
 
 Also a config file must be used, this should be present in the config folder in the root directory and should be called `neuro-config.js` the example file can be used to help set this up.
 
+As a large amount of the assets and sounds not being distributed in the repo by default, you can use audio-scraper.py to download all of this automatically, The only needed dependency is [BeautifulSoup](https://pypi.org/project/beautifulsoup4/). This may take a few minutes as I'm too lazy to make it multi-threaded, this should only need to be ran once though.
+
 # Examples
 
 Here are a few example set-ups for the config.
