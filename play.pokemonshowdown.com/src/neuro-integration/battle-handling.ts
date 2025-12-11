@@ -89,6 +89,10 @@ export class BattleActionsHandler{
 	}
 
 	async endGameActions(): Promise<void>{
+		if (config.AUTOMATICALLY_CHALLENGE_PLAYER !== ""){
+			PS.send("/challenge " + config.AUTOMATICALLY_CHALLENGE_PLAYER + ", " + config.CHALLENGE_PLAYER_FORMAT)
+			return;
+		}
 		this.actions.push(new AcceptChallenge())
 	}
 

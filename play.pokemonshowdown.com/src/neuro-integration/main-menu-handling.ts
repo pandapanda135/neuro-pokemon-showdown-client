@@ -56,17 +56,31 @@ async function handleLoad(): Promise<void> {
 
 	if (config.USERNAME === "" || config.PASSWORD === "") throw new Error("Either the username or password were not set in the config.");
 
+	// this is here to stop "choose name" button being present as it request being clicked for some reason.
+	var bar = document.querySelector<HTMLButtonElement>(".userbar");
+	while (bar !== null && bar.children[0].children.length > 0){
+		console.log("clicking mini-window");
+		document.querySelector<HTMLButtonElement>('.mini-window')?.click();
+		await delay(secondsToMs(1));
+	}
+
 	// use while in case log in fails for whatever reason
 	while (PS.user.name !== config.USERNAME){
+		// document.querySelector<HTMLButtonElement>('.mini-window')?.click()
 		console.log("logging in: " + PS.user.name);
 		await logInFlow()
 		await delay(secondsToMs(1))
 	}
 
+	if (config.AUTOMATICALLY_CHALLENGE_PLAYER != undefined && config.AUTOMATICALLY_CHALLENGE_PLAYER !== ""){
+		PS.send("/challenge " + config.AUTOMATICALLY_CHALLENGE_PLAYER + ", " + config.CHALLENGE_PLAYER_FORMAT)
+		return;
+	}
+
 	let actions: NeuroAction<any>[] = [];
 	let force: ForceActions = {query: "", actionNames: []};
 	if (config.ALLOW_MAIN_MENU_CHALLENGER){
-		// we don't register this action again so we wait for people to send challenges
+		// we don't register this action again so we need to wait for people to send challenges to populate schema.
 		while (challengers.filter(challenge => !isValidFormat(challenge.format)).length < 5){
 			await delay(secondsToMs(20));
 		}
