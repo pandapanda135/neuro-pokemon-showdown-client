@@ -1,5 +1,5 @@
 import type { Battle, Pokemon, ServerPokemon } from "../battle";
-import type { BattleChoiceBuilder, BattleMoveRequest, BattleRequestActivePokemon, BattleSwitchRequest } from "../battle-choices";
+import type { BattleChoiceBuilder, BattleMoveRequest, BattleRequestActivePokemon, BattleSwitchRequest, BattleTeamRequest } from "../battle-choices";
 import { PS } from "../client-main";
 import type { BattleRoom } from "../panel-battle";
 import { ActionResult, NeuroAction, type ActionData } from "./helpers/action-helpers";
@@ -227,6 +227,55 @@ export class SelectTarget extends NeuroAction<string>{
 		if (pokemon?.fainted) return false;
 		if (disabled || pokemon == null || pokemon?.name == undefined) return false;
 		return disabled
+	}
+}
+
+export class SetStarting extends NeuroAction<number>{
+	static actionName = "set_starting_team";
+	override Validation(data: ActionData): ActionResult<number> {
+		if (!SetStarting.GetValidPokemon(this.request,this.choices).includes(data.params.pokemon)){
+			return new ActionResult(false, "You provided a pokemon that is not valid.")
+		}
+
+		var pokemonIndex: number | undefined = undefined;
+		var pokemon: ServerPokemon | undefined = this.request.side.pokemon.find((pokemon) => {
+			return pokemon.name === data.params.pokemon
+		});
+		if (pokemon == undefined){
+			return new ActionResult(false, "");
+		}
+
+		pokemonIndex = this.request.side.pokemon.indexOf(pokemon)
+		if (pokemonIndex === undefined){
+			return new ActionResult(false, "You provided a pokemon that is not valid.");
+		}
+
+		if (document.querySelector<HTMLButtonElement>('.switchmenu')?.children == undefined){
+			return new ActionResult(false, "There was an issue with the integration, where the buttons could not be found. :(")
+		}
+
+		return new ActionResult(true, "You have selected " + pokemon.name + " in slot " + (this.choices.alreadySwitchingIn.length + 1), pokemonIndex)
+	}
+	override async Execute(data: number): Promise<void> {
+		var buttons: HTMLCollection | undefined = document.querySelector<HTMLButtonElement>('.switchmenu')?.children;
+
+		if (buttons == undefined){
+			return ;
+		}
+
+		(buttons[data] as HTMLButtonElement).click()
+	}
+	constructor(private request: BattleTeamRequest, private choices: BattleChoiceBuilder){
+		super(SetStarting.actionName, "Set the pokemon to start this game with.", {type: "object",
+			properties:{pokemon: {enum: SetStarting.GetValidPokemon(request, choices)}}, required: ['pokemon']})
+	}
+
+	static GetValidPokemon(request: BattleTeamRequest, choices: BattleChoiceBuilder){
+		return request.side.pokemon.map((pokemon, i) => {
+			if (choices.alreadySwitchingIn.includes(i + 1)) return "";
+
+			return pokemon.name;
+		}).filter(str => str.length > 0);
 	}
 }
 

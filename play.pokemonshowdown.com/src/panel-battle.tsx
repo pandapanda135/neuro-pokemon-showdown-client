@@ -450,6 +450,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 	}
 	renderControls() {
 		const room = this.props.room;
+		this.actionsHandler = new BattleActionsHandler([]);
 		if (!room.battle) return null;
 		if (room.battle.ended) return this.renderAfterBattleControls();
 		if (room.side && room.request) {
@@ -897,7 +898,6 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 				{this.renderTeamList()}
 			</div>;
 		}
-		this.actionsHandler = new BattleActionsHandler([]);
 		if (request.side) {
 			room.battle.myPokemon = request.side.pokemon;
 			this.team = request.side.pokemon;
@@ -961,6 +961,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 				{this.actionsHandler.registerBattleActions(this.props.room.battle, request, choices)}
 			</div>;
 		} case 'team': {
+			{this.actionsHandler.selectStartingPokemon(request, choices)}
 			return <div class="controls">
 				<div class="whatdo">
 					{choices.alreadySwitchingIn.length > 0 ? (
@@ -985,6 +986,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 						{this.renderChosenTeam(request, choices)}
 					</div>
 				</div>
+				{this.actionsHandler.registerBattleActions(this.props.room.battle, request, choices)}
 			</div>;
 		}
 		}
@@ -1031,8 +1033,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 						<strong>Rematch</strong><br /><small>(closes this battle)</small>
 					</button>
 					{this.actionsHandler.endGameActions()}
-					{this.actionsHandler.registerBattleActions(this.props.room.battle)}
-					{this.actionsHandler = new BattleActionsHandler()}
+					{this.actionsHandler.registerBattleActions(this.props.room.battle, undefined, undefined, 10000)}
 				</p>
 			) : (
 				<p>

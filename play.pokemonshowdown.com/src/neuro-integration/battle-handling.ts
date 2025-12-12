@@ -1,13 +1,14 @@
 import type { Battle, ServerPokemon } from "../battle";
-import type { BattleChoiceBuilder, BattleMoveRequest, BattleRequest, BattleRequestActivePokemon, BattleSwitchRequest } from "../battle-choices";
+import type { BattleChoiceBuilder, BattleMoveRequest, BattleRequest, BattleRequestActivePokemon, BattleSwitchRequest, BattleTeamRequest } from "../battle-choices";
 import type { Args, KWArgs } from "../battle-text-parser";
 import { PS } from "../client-main";
 import type { BattleRoom } from "../panel-battle";
-import { ActivateSpecial, Forfeit, SelectMove, SelectTarget, SendChatMessage, SwapPokemon } from "./battle-actions";
-import { NeuroAction, registerActions, sendContext, type ForceActions } from "./helpers/action-helpers";
-import { config, delay } from "./helpers/setup";
+import { ActivateSpecial, Forfeit, SelectMove, SelectTarget, SendChatMessage, SetStarting, SwapPokemon } from "./battle-actions";
+import { NeuroAction, registerActions, sendContext, unregisterActions, type ForceActions } from "./helpers/action-helpers";
+import { config, delay, secondsToMs } from "./helpers/setup";
 import { AcceptChallenge, Rematch } from "./after-battle";
-import type { Ability, Item, Move } from "../battle-dex-data";
+import type { Ability, Item } from "../battle-dex-data";
+import type { ModdedDex } from "../battle-dex";
 
 enum States {
 	Main_Menu,
@@ -28,7 +29,6 @@ export function battleStart(args: Args, kw: KWArgs, preempt?: boolean) {
 
 export function newTurn(args: Args, kw: KWArgs, preempt?: boolean) {
 	const turnNumber: number = Number.parseInt(args[1]);
-	console.log("new turn args: " + args.toString());
 	let str = "This is happened during turn " + (turnNumber - 1).toString() + ":\n" + TurnStrings.map(str => str.trim()).join("\n");
 	if (turnNumber == 1){
 		str = "A new battle just started, this is what has happened in the set-up:\n" + TurnStrings.map(str => str.trim()).join("\n");
@@ -38,6 +38,7 @@ export function newTurn(args: Args, kw: KWArgs, preempt?: boolean) {
 }
 
 export function winsTie(args: Args, kw: KWArgs, preempt?: boolean){
+	checkBattleActionsRegistered()
 	if (args[0] === 'tie'){
 		sendContext("You and your opponent have tied this battle.", false)
 		return;
@@ -51,8 +52,16 @@ export function winsTie(args: Args, kw: KWArgs, preempt?: boolean){
 	}
 }
 
-export function prematureEnd(args: Args, kw: KWArgs, preempt?: boolean) {
+function checkBattleActionsRegistered() {
+	// I think these are the only ones that have to be registered at any time.
+	const battleActionNames: string[] = [SelectMove.actionName, SwapPokemon.actionName, SelectTarget.actionName, SetStarting.actionName]
+	unregisterActions(battleActionNames, true)
+}
 
+// tbh don't actually know how to trigger this.
+export function prematureEnd(args: Args, kw: KWArgs, preempt?: boolean) {
+	console.log("premature end");
+	checkBattleActionsRegistered()
 }
 
 export class BattleActionsHandler{
@@ -79,6 +88,10 @@ export class BattleActionsHandler{
 		}
 	}
 
+	selectStartingPokemon(request: BattleTeamRequest, choices: BattleChoiceBuilder){
+		this.actions.push(new SetStarting(request, choices))
+	}
+
 	addChatMessage(room: BattleRoom){
 		this.actions.push(new SendChatMessage(room))
 	}
@@ -89,21 +102,23 @@ export class BattleActionsHandler{
 	}
 
 	async endGameActions(): Promise<void>{
-		if (config.AUTOMATICALLY_CHALLENGE_PLAYER !== ""){
+		if (config.AUTOMATICALLY_CHALLENGE_PLAYER != undefined && config.AUTOMATICALLY_CHALLENGE_PLAYER !== ""){
 			PS.send("/challenge " + config.AUTOMATICALLY_CHALLENGE_PLAYER + ", " + config.CHALLENGE_PLAYER_FORMAT)
 			return;
 		}
+
+		await delay(secondsToMs(5))
 		this.actions.push(new AcceptChallenge())
 	}
 
-	async registerBattleActions(battle: Battle,request: BattleRequest | undefined = undefined , choices: BattleChoiceBuilder | undefined = undefined): Promise<void>{
+	async registerBattleActions(battle: Battle,request: BattleRequest | undefined = undefined , choices: BattleChoiceBuilder | undefined = undefined, delay_start: number = 1000): Promise<void>{
 		// we delay in case actions take time to be added
-		await delay(1000)
+		await delay(delay_start)
 		if (this.actions.length === 0) return;
 
 		console.log("this actions length: " + this.actions.length);
 
-		let force: ForceActions = {query: "", state: "", actionNames: []}
+		const force: ForceActions = {query: "", state: "", actionNames: []}
 		let sentEndGameState: boolean = false;
 
 		const currentIndex: number| undefined = choices?.index();
@@ -124,21 +139,15 @@ export class BattleActionsHandler{
 					console.log(`adding swap pokemon: request: ${request}   choices: ${choices}   battle request ${battleRequest}`);
 					if (request == undefined || choices == undefined || battle.myPokemon == null) break;
 
-					var validPokemon = `${battle.myPokemon.map(pokemon => {
-						if (pokemon.active) return "";
-
-						const ability: Ability = battle.dex.abilities.get(pokemon.ability!)
-						const item: Item = battle.dex.items.get(pokemon.item)
-						const moves: string[] = pokemon.moves.map(move => battle.dex.moves.get(move).name)
-						return `\n# Name: ${pokemon.name}\n## Stats:\n- Health: ${pokemon.hp}\n- Max Health: ${pokemon.maxhp}\n- Ability: ${ability.name}\n- Item: ${item.name}\n## Moves:\n- ${moves.join("\n- ")}`;
-					}).filter(move => move.length !== 0)}\n`;
+					// too dumb to find boolean logic for this
+					var validPokemon = this.formatPokemonArray(battle.myPokemon, battle.dex, (pokemon => {if (pokemon.fainted != undefined && pokemon.fainted) return false; return true;})) + "\n";
 
 					if (currentPokemon?.fainted) {
-						force.state += "Your main pokemon died, so you will need to change your pokemon before the next turn happens. These are your available options and what has happened in this turn:" + validPokemon + "\nThis is what has happened this turn\n" + TurnStrings.map(str => str.trim()).join("\n");
+						force.state += "Your main pokemon died, so you will need to change your pokemon before the next turn happens. These are your available options and what has happened in this turn:"
+						+ validPokemon + "\nThis is what has happened this turn\n" + TurnStrings.map(str => str.trim()).join("\n");
 						force.ephemeral = true;
 						break;
 					}
-					console.log("myside pokemon amount: " + battle.mySide.pokemon.length);
 					force.state += `These are the pokemon you can switch to and their moves and abilities:${validPokemon}`
 					break;
 				case SelectTarget.actionName:
@@ -167,6 +176,17 @@ export class BattleActionsHandler{
 					if (battleRequest == null || choices == undefined) break;
 					force.state += `This pokemon can ${BattleActionsHandler.SpecialString(battleRequest, choices)}\n`;
 					break;
+				case SetStarting.actionName:
+					var pokemon: ServerPokemon[] | undefined = request?.side?.pokemon;
+					if (pokemon == undefined) {
+						continue;
+					}
+					// we remove already added pokemon
+					var validPokemon = this.formatPokemonArray(pokemon, battle.dex, ((_, i) => {if (i != undefined && choices?.alreadySwitchingIn.includes(i + 1)) return false; return true;})) + "\n";
+
+					force.state += "You need to select some pokemon to start this battle with, the next pokemon you choose will be in slot "
+						+ (choices?.alreadySwitchingIn.length! + 1) + ", here are the stats of the pokemon you can chose:" + validPokemon
+					break;
 				case Forfeit.actionName:
 					force.state += "";
 					break;
@@ -184,9 +204,29 @@ export class BattleActionsHandler{
 		}
 
 		force.ephemeral = true;
-		console.log("force state: " + force.state);
 		registerActions(this.actions,force)
 	}
+
+	/**
+	 * This will format an array of pokemon for context
+	 * @param pokemon The pokemon to format
+	 * @param battle This is needed for dex
+	 * @param extraChecksfn If this returns false the pokemon will not be included, else it will be included.
+	 */
+	formatPokemonArray(pokemon: ServerPokemon[], dex: ModdedDex, extraChecksfn: ((args0: ServerPokemon, args1: number | undefined) => boolean) | undefined = undefined): string[] {
+		return pokemon.map((pokemon:ServerPokemon, i: number) => {
+			return this.formatPokemon(pokemon, dex, i, extraChecksfn);
+		}).filter(str => str.length !== 0)
+	};
+
+	formatPokemon(pokemon: ServerPokemon, dex: ModdedDex, index: number | undefined = undefined, extraChecksfn: ((args0: ServerPokemon, args1: number | undefined) => boolean) | undefined = undefined){{
+		if (extraChecksfn != undefined && !extraChecksfn(pokemon, index)) return "";
+
+		const ability: Ability = dex.abilities.get(pokemon.ability!)
+		const item: Item = dex.items.get(pokemon.item)
+		const moves: string[] = pokemon.moves.map(move => dex.moves.get(move).name)
+		return `\n# Name: ${pokemon.name}\n## Stats:\n- Health: ${pokemon.hp}\n- Max Health: ${pokemon.maxhp}\n- Ability: ${ability.name}\n- Item: ${item.name}\n## Moves:\n- ${moves.join("\n- ")}`;
+	}}
 
 	static CanUseSpecial(moveRequest: BattleRequestActivePokemon, choices: BattleChoiceBuilder): boolean {
 		const canDynamax: boolean | undefined = moveRequest.canDynamax && !choices.alreadyMax;

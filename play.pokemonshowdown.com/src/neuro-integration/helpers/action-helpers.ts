@@ -113,6 +113,29 @@ export function registerActions(actionTypes: NeuroAction<any>[], forceActions?: 
 	Client.onAction(handler.Handler)
 }
 
+/**
+ * Unregister any actions that are currently registered.
+ * @param actionNames The actions to unregister
+ * @param removeHandler this will remove any handler that includes the actions to be unregistered, this will also remove any other actions in that handler as Neuro will no longer be able to run those actions.
+ */
+export function unregisterActions(actionNames: string[], removeHandler: boolean = true){
+	var names = removeHandler ? [] : actionNames
+	const handler = currentHandlers.find(handler => handler.actionObjects.find(obj => actionNames.includes(obj.name)) !== undefined)
+	if (removeHandler){
+		if (handler == undefined) return;
+		names = handler.actionObjects.map(obj => obj.name);
+	}
+	Client.unregisterActions(names)
+	if (!removeHandler) return;
+
+	currentHandlers = currentHandlers.filter(h => h !== handler);
+}
+
+/**
+ * This is for sending a context message
+ * @param message The message to send
+ * @param silent If Neuro should talk about this context, if this is not defined it will default to being true / being silent.
+ */
 export function sendContext(message: string, silent?: boolean) {
 	if (!isOpen()) throw new Error("Tried to send context when the client is not connected yet.")
 
